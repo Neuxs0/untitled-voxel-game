@@ -12,6 +12,12 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+void updateInput(GLFWwindow* window) {
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+}
+
 std::string readFileToString(const std::string &path, bool &success) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
 
@@ -208,7 +214,17 @@ int main() {
         return -1;
     }
 
+    // OpenGL Options
     glfwSwapInterval(1); // 1 for VSync on, 0 for VSync off
+
+    glEnable(GL_DEPTH_TEST);
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Initialize Shaders
     GLuint core_program;
@@ -220,6 +236,8 @@ int main() {
     // App Loop
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+
+        updateInput(window);
 
         // Clear Screen
         glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
