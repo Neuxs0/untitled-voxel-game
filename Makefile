@@ -1,46 +1,50 @@
 CXX = g++
-
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
-
 LDFLAGS =
-
 LDLIBS = -lglfw -lGLEW -lGL -lm
-
 INCLUDE_DIRS =
 
 SRC_DIR = src
 OBJ_DIR = build/obj
+DIST_DIR = dist
 TARGET_NAME = untitled_voxel_game
-TARGET = dist/$(TARGET_NAME)
+TARGET = $(DIST_DIR)/$(TARGET_NAME)
+
+SHADER_SRC_DIR = $(SRC_DIR)/shaders
+SHADER_DEST_DIR = $(DIST_DIR)/shaders
 
 SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 
-.PHONY: all
-all: $(TARGET)
+DIRS_TO_CREATE = $(OBJ_DIR) $(DIST_DIR) $(SHADER_DEST_DIR)
 
-$(TARGET): $(OBJECTS)
-	@mkdir -p $(@D)
+.PHONY: all clean run rebuild test copy_shaders
+
+all: $(TARGET) copy_shaders
+
+$(DIRS_TO_CREATE):
+	mkdir -p $@
+
+$(TARGET): $(OBJECTS) | $(DIST_DIR)
 	@echo "Linking $@"
 	$(CXX) $(OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(@D)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 	@echo "Compiling $< to $@"
 	$(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
-.PHONY: clean
+copy_shaders: | $(SHADER_DEST_DIR)
+	@echo "Copying shaders to $(SHADER_DEST_DIR)..."
+	cp -R $(SHADER_SRC_DIR)/* $(SHADER_DEST_DIR)/
+
 clean:
 	@echo "Cleaning build artifacts..."
-	rm -rf $(OBJ_DIR) $(TARGET)
+	rm -rf $(OBJ_DIR) $(DIST_DIR)
 
-.PHONY: run
-run: $(TARGET)
-	@echo "Running $(TARGET)..."
-	./$(TARGET)
+run: all
+	@echo "Running $(TARGET_NAME) from $(DIST_DIR)..."
+	cd $(DIST_DIR) && ./$(TARGET_NAME)
 
-.PHONY: rebuild
 rebuild: clean all
 
-.PHONY: test
 test: clean all run
