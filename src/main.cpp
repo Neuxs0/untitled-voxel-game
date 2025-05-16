@@ -7,6 +7,8 @@
 #include "texture/texture_loader.h"
 
 #include <glm/glm.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 std::vector<Vertex> vertices = {
     // position                     // color                        // texcoord
@@ -23,6 +25,12 @@ std::vector<GLuint> indices = {
 
 
 int main() {
+    // Show OpenGL Details
+    std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+
     // Window Settings
     const int winWidth = 640;
     const int winHeight = 480;
@@ -35,11 +43,9 @@ int main() {
         return -1;
     }
 
-    // Show OpenGL Details
-    std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
-    std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
-    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
+    int fbWidth, fbHeight;
+
+    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
     // OpenGL Options
     glfwSwapInterval(1); // 1 for VSync on, 0 for VSync off
@@ -97,6 +103,41 @@ int main() {
         return -1;
     }
 
+
+    // Translations
+    glm::mat4 ModelMatrix(1.0f);
+    ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f));
+
+
+    // View projection
+    glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
+    glm::vec3 cameFront(0.0f, 0.0f, -1.0f);
+    glm::vec3 camPosition(0.0f, 0.0f, 2.0f);
+
+    glm::mat4 ViewMatrix(1.0f);
+    ViewMatrix = glm::lookAt(camPosition, camPosition + cameFront, worldUp);
+
+    float fov = 85.0f;
+    float nearPlane = 0.1f;
+    float farPlane = 1000.0f;
+    glm::mat4 ProjectionMatrix(1.0f);
+    ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
+
+
+    // Initialize uniforms
+    glUseProgram(core_program);
+
+    glUniformMatrix4fv(glGetUniformLocation(core_program, "ModelMatrix"), 1, GL_FALSE, glm::value_ptr(ModelMatrix));
+    glUniformMatrix4fv(glGetUniformLocation(core_program, "ViewMatrix"), 1, GL_FALSE, glm::value_ptr(ViewMatrix));
+    glUniformMatrix4fv(glGetUniformLocation(core_program, "ProjectionMatrix"), 1, GL_FALSE, glm::value_ptr(ProjectionMatrix));
+
+    glUseProgram(0);
+
+
     // App Loop
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
@@ -108,8 +149,23 @@ int main() {
         glUseProgram(core_program);
         glBindVertexArray(VAO);
 
-        glUniform1i(glGetUniformLocation(core_program, "texture0"), 0);
+        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
+        // Translations
+        ModelMatrix = glm::translate(ModelMatrix, glm::vec3(0.0f, 0.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f));
+        ProjectionMatrix = glm::mat4(1.0f);
+        ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
+
+        // Update uniforms
+        glUniform1i(glGetUniformLocation(core_program, "texture0"), 0);
+        glUniformMatrix4fv(glGetUniformLocation(core_program, "ModelMatrix"), 1, GL_FALSE, glm::value_ptr(ModelMatrix));
+        glUniformMatrix4fv(glGetUniformLocation(core_program, "ProjectionMatrix"), 1, GL_FALSE, glm::value_ptr(ProjectionMatrix));
+
+        // Activate textures
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture0ID);
 

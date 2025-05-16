@@ -14,7 +14,7 @@ bool loadShadersFromFile(GLuint &program, const std::string &vertShaderPath, con
     // Vertex
     src = Utils::readFileToString(vertShaderPath, fileReadSuccess);
     if (!fileReadSuccess) {
-        std::cerr << "Error:ShaderLoader:loadShadersFromFile: Failed to read vertex shader file: " << vertShaderPath << "\n";
+        std::cerr << "Error: ShaderLoader: loadShadersFromFile: Failed to read vertex shader file: " << vertShaderPath << "\n";
         return false;
     }
 
@@ -25,7 +25,7 @@ bool loadShadersFromFile(GLuint &program, const std::string &vertShaderPath, con
     glGetShaderiv(vertShader, GL_COMPILE_STATUS, &compile_success);
     if (!compile_success) {
         glGetShaderInfoLog(vertShader, 512, NULL, infoLog);
-        std::cerr << "Error:ShaderLoader:loadShadersFromFile: Couldn't compile vertex shader: " << vertShaderPath << "\n";
+        std::cerr << "Error: ShaderLoader: loadShadersFromFile: Couldn't compile vertex shader: " << vertShaderPath << "\n";
         std::cerr << infoLog << "\n";
         glDeleteShader(vertShader);
         return false;
@@ -34,7 +34,7 @@ bool loadShadersFromFile(GLuint &program, const std::string &vertShaderPath, con
     // Fragment
     src = Utils::readFileToString(fragShaderPath, fileReadSuccess);
     if (!fileReadSuccess) {
-        std::cerr << "Error:ShaderLoader:loadShadersFromFile: Failed to read fragment shader file: " << fragShaderPath << "\n";
+        std::cerr << "Error: ShaderLoader: loadShadersFromFile: Failed to read fragment shader file: " << fragShaderPath << "\n";
         glDeleteShader(vertShader);
         return false;
     }
@@ -46,7 +46,7 @@ bool loadShadersFromFile(GLuint &program, const std::string &vertShaderPath, con
     glGetShaderiv(fragShader, GL_COMPILE_STATUS, &compile_success);
     if (!compile_success) {
         glGetShaderInfoLog(fragShader, 512, NULL, infoLog);
-        std::cerr << "Error:ShaderLoader:loadShadersFromFile: Couldn't compile fragment shader: " << fragShaderPath << "\n";
+        std::cerr << "Error: ShaderLoader: loadShadersFromFile: Couldn't compile fragment shader: " << fragShaderPath << "\n";
         std::cerr << infoLog << "\n";
         glDeleteShader(vertShader);
         glDeleteShader(fragShader);
@@ -63,7 +63,7 @@ bool loadShadersFromFile(GLuint &program, const std::string &vertShaderPath, con
     glGetProgramiv(program, GL_LINK_STATUS, &link_success);
     if (!link_success) {
         glGetProgramInfoLog(program, 512, NULL, infoLog);
-        std::cerr << "Error:ShaderLoader:loadShadersFromFile: Couldn't link program" << "\n";
+        std::cerr << "Error: ShaderLoader: loadShadersFromFile: Couldn't link program" << "\n";
         std::cerr << infoLog << "\n";
         glDeleteShader(vertShader);
         glDeleteShader(fragShader);

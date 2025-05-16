@@ -9,7 +9,7 @@ bool loadTexture(const char* filePath, GLuint& textureID, int& texWidth, int& te
     unsigned char* image_data = SOIL_load_image(filePath, &texWidth, &texHeight, NULL, SOIL_LOAD_RGBA);
 
     if (!image_data) {
-        std::cerr << "Error:TextureLoader: Failed to load texture '" << filePath << "': " << SOIL_last_result() << std::endl;
+        std::cerr << "Error: TextureLoader: Failed to load texture '" << filePath << "': " << SOIL_last_result() << std::endl;
         return false;
     }
 
@@ -33,8 +33,6 @@ bool loadTexture(const char* filePath, GLuint& textureID, int& texWidth, int& te
 
     // Unbind texture
     glBindTexture(GL_TEXTURE_2D, 0);
-
-    std::cout << "Info:TextureLoader: Successfully loaded texture '" << filePath << "' (ID: " << textureID << ")" << std::endl;
 
     return true;
 }

@@ -23,7 +23,7 @@ GLFWwindow* initialize(const int width, const int height, const char* title, boo
     glfwSetErrorCallback(Window::glfw_error_callback);
 
     if (!glfwInit()) {
-        std::cerr << "Error:Window:initialize: glfwInit() failed." << std::endl;
+        std::cerr << "Error: Window: initialize: glfwInit() failed." << std::endl;
         initSuccess = false;
         return nullptr;
     }
@@ -37,7 +37,7 @@ GLFWwindow* initialize(const int width, const int height, const char* title, boo
 
     GLFWwindow *window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (window == NULL) {
-        std::cerr << "Error:Window:initialize: GLFW Window failed to create." << std::endl;
+        std::cerr << "Error: Window: initialize: GLFW Window failed to create." << std::endl;
         glfwTerminate();
         initSuccess = false;
         return nullptr;
@@ -50,7 +50,7 @@ GLFWwindow* initialize(const int width, const int height, const char* title, boo
     glewExperimental = GL_TRUE;
     GLenum glewErr = glewInit();
     if (glewErr != GLEW_OK) {
-        std::cerr << "Error:Window:initialize: GLEW Initialization Failed: " << glewGetErrorString(glewErr) << std::endl;
+        std::cerr << "Error: Window: initialize: GLEW Initialization Failed: " << glewGetErrorString(glewErr) << std::endl;
         glfwDestroyWindow(window);
         glfwTerminate();
         initSuccess = false;

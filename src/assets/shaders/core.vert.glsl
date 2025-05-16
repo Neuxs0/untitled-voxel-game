@@ -8,10 +8,14 @@ out vec3 vs_position;
 out vec3 vs_color;
 out vec2 vs_texcoord;
 
+uniform mat4 ModelMatrix;
+uniform mat4 ViewMatrix;
+uniform mat4 ProjectionMatrix;
+
 void main() {
-    vs_position = vertex_position;
+    vs_position = vec4(ModelMatrix * vec4(vertex_position, 1.0f)).xyz;
     vs_color = vertex_color;
     vs_texcoord = vertex_texcoord;
 
-    gl_Position = vec4(vertex_position, 1.0f);
+    gl_Position = ProjectionMatrix * ViewMatrix * ModelMatrix * vec4(vertex_position, 1.0f);
 }
