@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O2
 LDFLAGS =
-LDLIBS = -lglfw -lGLEW -lGL -lm
+LDLIBS = -lglfw -lGLEW -lGL -lm -lsoil2
 INCLUDE_DIRS =
 
 SRC_DIR = src
@@ -12,15 +12,17 @@ TARGET = $(DIST_DIR)/$(TARGET_NAME)
 
 SHADER_SRC_DIR = $(SRC_DIR)/shaders
 SHADER_DEST_DIR = $(DIST_DIR)/shaders
+TEXTURE_SRC_DIR = $(SRC_DIR)/textures
+TEXTURE_DEST_DIR = $(DIST_DIR)/textures
 
 SOURCES = $(wildcard $(SRC_DIR)/*.cpp)
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 
-DIRS_TO_CREATE = $(OBJ_DIR) $(DIST_DIR) $(SHADER_DEST_DIR)
+DIRS_TO_CREATE = $(OBJ_DIR) $(DIST_DIR) $(SHADER_DEST_DIR) $(TEXTURE_DEST_DIR)
 
-.PHONY: all clean run rebuild test copy_shaders
+.PHONY: all clean run rebuild test copy_shaders copy_textures
 
-all: $(TARGET) copy_shaders
+all: $(TARGET) copy_shaders copy_textures
 
 $(DIRS_TO_CREATE):
 	mkdir -p $@
@@ -36,6 +38,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 copy_shaders: | $(SHADER_DEST_DIR)
 	@echo "Copying shaders to $(SHADER_DEST_DIR)..."
 	cp -R $(SHADER_SRC_DIR)/* $(SHADER_DEST_DIR)/
+
+copy_textures: | $(TEXTURE_DEST_DIR)
+	@echo "Copying shaders to $(TEXTURE_DEST_DIR)..."
+	cp -R $(TEXTURE_SRC_DIR)/* $(TEXTURE_DEST_DIR)/
 
 clean:
 	@echo "Cleaning build artifacts..."

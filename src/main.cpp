@@ -4,15 +4,16 @@
 #include "window.h"
 #include "Vertex.h"
 #include "shader_loader.h"
+#include "texture_loader.h"
 
 #include <glm/glm.hpp>
 
 std::vector<Vertex> vertices = {
     // position                     // color                        // texcoord
-    {glm::vec3(-0.5f, 0.5f, 0.0f),  glm::vec3(0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 1.0f)},
-    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(0.0f, 0.0f)},
-    {glm::vec3(0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(1.0f, 0.0f)},
-    {glm::vec3(0.5f, 0.5f, 0.0f),   glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(0.0f, 0.0f)}
+    {glm::vec3(-0.5f, 0.5f, 0.0f),  glm::vec3(0.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f)},
+    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f)},
+    {glm::vec3(0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f)},
+    {glm::vec3(0.5f, 0.5f, 0.0f),   glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f)}
 };
 
 std::vector<GLuint> indices = {
@@ -87,9 +88,14 @@ int main() {
     glEnableVertexAttribArray(2);
 
 
-    glUseProgram(core_program);
-    glBindVertexArray(VAO);
-
+    // Initialize Textures
+    GLuint texture0ID;
+    int texWidth = 0;
+    int texHeight = 0;
+    if (!TextureLoader::loadTexture("textures/dirt.png", texture0ID, texWidth, texHeight)) {
+        std::cerr << "Error:main: Failed to initialize texture." << std::endl;
+        return -1;
+    }
 
     // App Loop
     while (!glfwWindowShouldClose(window)) {
@@ -99,10 +105,24 @@ int main() {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+        glUseProgram(core_program);
+        glBindVertexArray(VAO);
+
+        glUniform1i(glGetUniformLocation(core_program, "texture0"), 0);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture0ID);
+
         // Draw
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
 
+        // End draw
         glfwSwapBuffers(window);
+
+        glBindVertexArray(0);
+        glUseProgram(0);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
     
 
@@ -111,7 +131,8 @@ int main() {
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
-    
+    glDeleteTextures(1, &texture0ID);
+
     glfwDestroyWindow(window);
     glfwTerminate();
 
