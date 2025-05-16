@@ -8,13 +8,16 @@
 #include <glm/glm.hpp>
 
 std::vector<Vertex> vertices = {
-    {glm::vec3(0.0f, 0.5f, 0.0f),   glm::vec3(0.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f)},
-    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f)},
-    {glm::vec3(0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f)}
+    // position                     // color                        // texcoord
+    {glm::vec3(-0.5f, 0.5f, 0.0f),  glm::vec3(0.0f, 1.0f, 1.0f), glm::vec2(0.0f, 1.0f)},
+    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(0.0f, 0.0f)},
+    {glm::vec3(0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(1.0f, 0.0f)},
+    {glm::vec3(0.5f, 0.5f, 0.0f),   glm::vec3(1.0f, 1.0f, 1.0f), glm::vec2(0.0f, 0.0f)}
 };
 
 std::vector<GLuint> indices = {
-    0, 1, 2
+    0, 1, 2,    // Triangle 1
+    0, 2, 3     // Triangle 2
 };
 
 
