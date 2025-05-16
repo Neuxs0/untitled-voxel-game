@@ -25,12 +25,6 @@ std::vector<GLuint> indices = {
 
 
 int main() {
-    // Show OpenGL Details
-    std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
-    std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
-    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
-    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
-
     // Window Settings
     const int winWidth = 640;
     const int winHeight = 480;
@@ -42,6 +36,12 @@ int main() {
     if (!windowInitSuccess || !window) {
         return -1;
     }
+    
+    // Show OpenGL Details
+    std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
+    std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
+    std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+    std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
     int fbWidth, fbHeight;
 
@@ -99,7 +99,7 @@ int main() {
     int texWidth = 0;
     int texHeight = 0;
     if (!TextureLoader::loadTexture("assets/textures/dirt.png", texture0ID, texWidth, texHeight)) {
-        std::cerr << "Error:main: Failed to initialize texture." << std::endl;
+        std::cerr << "Error: main: Failed to initialize texture." << std::endl;
         return -1;
     }
 
@@ -157,7 +157,6 @@ int main() {
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(1.0f), glm::vec3(0.0f, 1.0f, 0.0f));
         ModelMatrix = glm::rotate(ModelMatrix, glm::radians(0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
         ModelMatrix = glm::scale(ModelMatrix, glm::vec3(1.0f));
-        ProjectionMatrix = glm::mat4(1.0f);
         ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
 
         // Update uniforms
