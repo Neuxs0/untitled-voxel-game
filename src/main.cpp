@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
@@ -11,6 +12,26 @@
 #include <glm/mat4x4.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+
+struct Vertex {
+    glm::vec3 position;
+    glm::vec3 color;
+    glm::vec2 texcoord;
+};
+
+Vertex verticies[] = {
+    // position                     // color                        // texcoord
+    glm::vec3(0.0f, 0.5f, 0.0f),    glm::vec3(0.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),
+    glm::vec3(-0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),
+    glm::vec3(0.5f, -0.5f, 0.0f),   glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f)
+};
+unsigned numOfVerticies = sizeof(verticies) / sizeof(Vertex);
+
+GLuint indicies[] = {
+    0, 1, 2
+};
+unsigned numOfIndicies = sizeof(indicies) / sizeof(GLuint);
+
 
 void updateInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -189,6 +210,7 @@ int main() {
         return -1;
     }
 
+
     // Window Settings
     const int winWidth = 640;
     const int winHeight = 480;
@@ -204,6 +226,7 @@ int main() {
         return -1;
     }
 
+
     // Initialize GLEW
     glewExperimental = GL_TRUE;
     GLenum glewErr = glewInit();
@@ -213,6 +236,7 @@ int main() {
         glfwDestroyWindow(window);
         return -1;
     }
+
 
     // OpenGL Options
     glfwSwapInterval(1); // 1 for VSync on, 0 for VSync off
@@ -226,12 +250,50 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+
     // Initialize Shaders
     GLuint core_program;
     if (!loadShaders(core_program, "shaders/core.vert.glsl", "shaders/core.frag.glsl")) {
         glfwTerminate();
         return -1;
     }
+
+
+    // Create and bind VAO, VBO, and EBO
+    GLuint VAO;
+    glCreateVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
+
+    GLuint VBO;
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verticies), verticies, GL_STATIC_DRAW);
+
+    GLuint EBO;
+    glGenBuffers(1, &EBO);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
+
+
+    // Input Assembly
+    GLuint attribLoc;
+    // position
+    attribLoc = glGetAttribLocation(core_program, "vertex_position");
+    glVertexAttribPointer(attribLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, position));
+    glEnableVertexAttribArray(attribLoc);
+
+    // color
+    attribLoc = glGetAttribLocation(core_program, "vertex_color");
+    glVertexAttribPointer(attribLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, color));
+    glEnableVertexAttribArray(attribLoc);
+
+    // texcoord
+    attribLoc = glGetAttribLocation(core_program, "vertex_texcoord");
+    glVertexAttribPointer(attribLoc, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, texcoord));
+    glEnableVertexAttribArray(attribLoc);
+
+    glBindVertexArray(0);
+
 
     // App Loop
     while (!glfwWindowShouldClose(window)) {
@@ -240,11 +302,17 @@ int main() {
         updateInput(window);
 
         // Clear Screen
-        glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        // Draw
+        // Use program
         glUseProgram(core_program);
+
+        // Bind vertex array
+        glBindVertexArray(VAO);
+
+        // Draw
+        glDrawElements(GL_TRIANGLES, numOfIndicies, GL_UNSIGNED_INT, 0);
 
         // End Draw
         glUseProgram(0);
