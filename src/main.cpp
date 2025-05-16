@@ -2,18 +2,18 @@
 #include <vector>
 
 #include "window.h"
-#include "Vertex.h"
-#include "shader_loader.h"
-#include "texture_loader.h"
+#include "rendering/Vertex.h"
+#include "shader/shader_loader.h"
+#include "texture/texture_loader.h"
 
 #include <glm/glm.hpp>
 
 std::vector<Vertex> vertices = {
     // position                     // color                        // texcoord
-    {glm::vec3(-0.5f, 0.5f, 0.0f),  glm::vec3(0.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f)},
-    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f)},
-    {glm::vec3(0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f)},
-    {glm::vec3(0.5f, 0.5f, 0.0f),   glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f)}
+    {glm::vec3(-0.5f, 0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f)},
+    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f)},
+    {glm::vec3(0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f)},
+    {glm::vec3(0.5f, 0.5f, 0.0f),   glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f)}
 };
 
 std::vector<GLuint> indices = {
@@ -53,7 +53,7 @@ int main() {
 
     // Initialize Shaders
     GLuint core_program;
-    if (!ShaderLoader::loadShadersFromFile(core_program, "shaders/core.vert.glsl", "shaders/core.frag.glsl")) {
+    if (!ShaderLoader::loadShadersFromFile(core_program, "assets/shaders/core.vert.glsl", "assets/shaders/core.frag.glsl")) {
         glfwDestroyWindow(window);
         glfwTerminate();
         return -1;
@@ -92,7 +92,7 @@ int main() {
     GLuint texture0ID;
     int texWidth = 0;
     int texHeight = 0;
-    if (!TextureLoader::loadTexture("textures/dirt.png", texture0ID, texWidth, texHeight)) {
+    if (!TextureLoader::loadTexture("assets/textures/dirt.png", texture0ID, texWidth, texHeight)) {
         std::cerr << "Error:main: Failed to initialize texture." << std::endl;
         return -1;
     }
