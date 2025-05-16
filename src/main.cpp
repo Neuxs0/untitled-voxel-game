@@ -15,6 +15,10 @@ void glfw_error_callback(int error, const char *description) {
     std::cerr << "GLFW Error (Code " << error << "): " << description << std::endl;
 }
 
+void framebuffer_resize_callback(GLFWwindow* window, int fbWidth, int fbHeight) {
+    glViewport(0, 0, fbWidth, fbHeight);
+}
+
 GLFWwindow* createWindow(int width, int height, const char* title) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
@@ -22,8 +26,8 @@ GLFWwindow* createWindow(int width, int height, const char* title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
-    // No Resizing
-    glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+    // Make window resizable
+    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
 
     // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // For MacOS
 
@@ -34,9 +38,7 @@ GLFWwindow* createWindow(int width, int height, const char* title) {
         return nullptr;
     }
 
-    int fbWidth, fbHeight;
-    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-    glViewport(0, 0, fbWidth, fbHeight);
+    glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
 
     glfwMakeContextCurrent(window);
 
@@ -82,11 +84,13 @@ int main() {
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
-        
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        // Clear Screen
+        glClearColor(0.0f, 1.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+        // Draw
 
+        // End Draw
         glfwSwapBuffers(window);
         glFlush();
     }
