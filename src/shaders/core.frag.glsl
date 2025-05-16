@@ -1,4 +1,4 @@
-#version 440 core
+#version 460 core
 
 in vec3 vs_position;
 in vec3 vs_color;

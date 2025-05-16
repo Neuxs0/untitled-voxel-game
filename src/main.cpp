@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 #include <GL/glew.h>
@@ -19,19 +20,17 @@ struct Vertex {
     glm::vec2 texcoord;
 };
 
-Vertex verticies[] = {
-    // position                     // color                        // texcoord
-    glm::vec3(0.0f, 0.5f, 0.0f),    glm::vec3(0.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),
-    glm::vec3(-0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),
-    glm::vec3(0.5f, -0.5f, 0.0f),   glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f)
-};
-unsigned numOfVerticies = sizeof(verticies) / sizeof(Vertex);
 
-GLuint indicies[] = {
+std::vector<Vertex> vertices = {
+    // position                     // color                        // texcoord
+    {glm::vec3(0.0f, 0.5f, 0.0f),   glm::vec3(0.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f)},
+    {glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f)},
+    {glm::vec3(0.5f, -0.5f, 0.0f),  glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f)}
+};
+
+std::vector<GLuint> indices = {
     0, 1, 2
 };
-unsigned numOfIndicies = sizeof(indicies) / sizeof(GLuint);
-
 
 void updateInput(GLFWwindow* window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
@@ -40,51 +39,24 @@ void updateInput(GLFWwindow* window) {
 }
 
 std::string readFileToString(const std::string &path, bool &success) {
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-
+    std::ifstream file(path, std::ios::binary);
     if (!file.is_open()) {
-        std::cerr << "ERROR:main.cpp:readFileToString: Failed to open file (mode: binary | ate): " << path << std::endl;
+        std::cerr << "ERROR:main.cpp:readFileToString: Failed to open file: " << path << std::endl;
         success = false;
         return "";
     }
 
-    std::streamsize size = file.tellg();
+    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-    if (size == static_cast<std::streamsize>(-1)) {
-        std::cerr << "ERROR:main.cpp:readFileToString: Failed to determine file size for: " << path << std::endl;
-        file.close();
-        success = false;
-        return "";
-    }
-
-    if (size == 0) {
-        file.close();
-        success = true;
-        return "";
-    }
-
-    file.seekg(0, std::ios::beg);
-
-    if (!file.good()) {
-        std::cerr << "ERROR:main.cpp:readFileToString: Failed to seek to beginning of file: " << path << std::endl;
-        file.close();
-        success = false;
-        return "";
-    }
-
-    std::string buffer;
-    buffer.resize(static_cast<size_t>(size));
-
-    if (!file.read(&buffer[0], size)) {
-        std::cerr << "ERROR:main.cpp:readFileToString: Failed to read " << size << " bytes from file: " << path << std::endl;
-        file.close();
+    if (file.bad()) {
+        std::cerr << "ERROR:main.cpp:readFileToString: Failed to read file: " << path << std::endl;
         success = false;
         return "";
     }
 
     file.close();
     success = true;
-    return buffer;
+    return content;
 }
 
 void glfw_error_callback(int error, const char *description) {
@@ -170,12 +142,12 @@ bool loadShaders(GLuint &program, const std::string &vertShaderPath, const std::
     return true;
 }
 
-GLFWwindow* createWindow(int width, int height, const char* title) {
+GLFWwindow* createWindow(const int width, const int height, const char* title) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    // GLFW 4.4
+    // GLFW 4.6
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 
     // Make window resizable
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
@@ -234,6 +206,7 @@ int main() {
     if (glewErr != GLEW_OK) {
         std::cerr << "Error:main.cpp:createWindow: GLEW Initialization Failed: " << glewGetErrorString(glewErr) << "\n";
         glfwDestroyWindow(window);
+        glfwTerminate();
         return -1;
     }
 
@@ -267,32 +240,29 @@ int main() {
     GLuint VBO;
     glGenBuffers(1, &VBO);
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(verticies), verticies, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
 
     GLuint EBO;
     glGenBuffers(1, &EBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
-
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 
     // Input Assembly
-    GLuint attribLoc;
     // position
-    attribLoc = glGetAttribLocation(core_program, "vertex_position");
-    glVertexAttribPointer(attribLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, position));
-    glEnableVertexAttribArray(attribLoc);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, position));
+    glEnableVertexAttribArray(0);
 
     // color
-    attribLoc = glGetAttribLocation(core_program, "vertex_color");
-    glVertexAttribPointer(attribLoc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, color));
-    glEnableVertexAttribArray(attribLoc);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, color));
+    glEnableVertexAttribArray(1);
 
     // texcoord
-    attribLoc = glGetAttribLocation(core_program, "vertex_texcoord");
-    glVertexAttribPointer(attribLoc, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, texcoord));
-    glEnableVertexAttribArray(attribLoc);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, texcoord));
+    glEnableVertexAttribArray(2);
 
-    glBindVertexArray(0);
+    
+    glUseProgram(core_program);
+    glBindVertexArray(VAO);
 
 
     // App Loop
@@ -305,21 +275,19 @@ int main() {
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        // Use program
-        glUseProgram(core_program);
-
-        // Bind vertex array
-        glBindVertexArray(VAO);
-
         // Draw
-        glDrawElements(GL_TRIANGLES, numOfIndicies, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
 
         // End Draw
-        glUseProgram(0);
         glfwSwapBuffers(window);
     }
 
+    glUseProgram(0);
+    glBindVertexArray(0);
 
+    glDeleteVertexArrays(1, &VAO);
+    glDeleteBuffers(1, &VBO);
+    glDeleteBuffers(1, &EBO);
     glfwDestroyWindow(window);
     glfwTerminate();
     glDeleteProgram(core_program);
