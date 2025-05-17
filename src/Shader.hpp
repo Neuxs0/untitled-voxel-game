@@ -2,7 +2,10 @@
 
 #include <unordered_map>
 
-#include "utils/files.h"
+#include <GL/glew.h>
+#include <glm/glm.hpp>
+
+#include "utils/files.hpp"
 
 class Shader
 {

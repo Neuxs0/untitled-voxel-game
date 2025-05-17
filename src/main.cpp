@@ -1,9 +1,10 @@
 #include <vector>
 
-#include "window.h"
-#include "Vertex.h"
-#include "Shader.h"
-#include "Texture.h"
+#include "Vertex.hpp"
+#include "window.hpp"
+#include "Shader.hpp"
+#include "Texture.hpp"
+#include "Material.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -121,8 +122,13 @@ int main()
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, normal));
     glEnableVertexAttribArray(3);
 
+
     // Initialize Textures
     Texture dirtTex("dirt.png", 0);
+
+    //Initialize Materials
+    Material dirtMaterial(glm::vec3(0.1f), glm::vec3(1.0f), glm::vec3(0.1f), dirtTex.getTexUnit(), dirtTex.getTexUnit());
+
 
     // Model Transformation
     glm::vec3 position(0.0f, 0.0f, 0.0f);
@@ -154,7 +160,6 @@ int main()
 
     // Initialize uniforms
     coreShader.use();
-    coreShader.setInt("texture0", dirtTex.getTexUnit());
     coreShader.setVec3("lightPos0", lightPos0);
     coreShader.setVec3("cameraPos", camPos);
     coreShader.setMat4("ModelMatrix", ModelMatrix);
@@ -193,17 +198,19 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
         coreShader.use();
-        glBindVertexArray(VAO);
 
         // Update uniforms
-        coreShader.setBool("texture0", dirtTex.getTexUnit());
         coreShader.setVec3("cameraPos", camPos);
         coreShader.setVec3("lightPos0", lightPos0);
         coreShader.setMat4("ViewMatrix", ViewMatrix);
         coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
+        dirtMaterial.sendToShader(coreShader);
 
         // Activate textures
         dirtTex.bind();
+
+        // Bind the vertex array
+        glBindVertexArray(VAO);
 
         // Draw
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);

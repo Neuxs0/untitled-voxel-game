@@ -1,7 +1,7 @@
 #include <iostream>
 #include <GL/glew.h>
 
-#include "window.h"
+#include "window.hpp"
 
 namespace Window
 {

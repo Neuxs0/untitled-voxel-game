@@ -27,6 +27,9 @@ public:
     Texture(const std::string &fileName, const GLint &texUnit, const GLenum &type = GL_TEXTURE_2D)
         : id(0), width(0), height(0), type(type), texUnit(texUnit)
     {
+        if (id != 0)
+            glDeleteTextures(1, &id);
+
         unsigned char *image = loadImage(fileName);
         
         // Generate texture
