@@ -18,7 +18,7 @@ void main() {
     vs_position = vec4(ModelMatrix * vec4(vertex_position, 1.0f)).xyz;
     vs_color = vertex_color;
     vs_texcoord = vertex_texcoord;
-    vs_normal = mat3(ModelMatrix) * vertex_normal;
+    vs_normal = normalize(mat3(transpose(inverse(ModelMatrix))) * vertex_normal);
 
     gl_Position = ProjectionMatrix * ViewMatrix * ModelMatrix * vec4(vertex_position, 1.0f);
 }
