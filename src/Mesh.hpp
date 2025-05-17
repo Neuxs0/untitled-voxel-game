@@ -1,10 +1,9 @@
 #pragma once
 
 #include <iostream>
-#include <vector>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "Vertex.hpp"
+#include "Primitives.hpp"
 #include "Shader.hpp"
 #include "Texture.hpp"
 #include "Material.hpp"
@@ -24,10 +23,10 @@ private:
 
     glm::mat4 ModelMatrix;
 
-    void initVAO(Vertex *vertArr, const unsigned &numVertices, GLuint *indexArr, const unsigned &numIndices)
+    void initVAO(Primitive *primitive)
     {
-        this->numVertices = numVertices;
-        this->numIndices = numIndices;
+        this->numVertices = primitive->getNumVertices();
+        this->numIndices = primitive->getNumIndices();
 
         // Bind VAO, VBO, and EBO
         glCreateVertexArrays(1, &VAO);
@@ -35,11 +34,11 @@ private:
 
         glGenBuffers(1, &VBO);
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, numVertices * sizeof(Vertex), vertArr, GL_STATIC_DRAW);
+        glBufferData(GL_ARRAY_BUFFER, numVertices * sizeof(Vertex), primitive->getVertices(), GL_STATIC_DRAW);
 
         glGenBuffers(1, &EBO);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, numIndices * sizeof(GLuint), indexArr, GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, numIndices * sizeof(GLuint), primitive->getIndices(), GL_STATIC_DRAW);
 
         // Vertex Attribute Pointers
         glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, position));
@@ -71,13 +70,13 @@ private:
 
 
 public:
-    Mesh(Vertex *vertArr, const unsigned &numVertices, GLuint *indexArr, const unsigned &numIndices,
+    Mesh(Primitive *primitive,
          glm::vec3 position = glm::vec3(0.0f), glm::vec3 rotation = glm::vec3(0.0f), glm::vec3 scale = glm::vec3(1.0f))
     {
         this->position = position;
         this->rotation = rotation;
         this->scale = scale;
-        initVAO(vertArr, numVertices, indexArr, numIndices);
+        initVAO(primitive);
         updateModelMatrix();
     }
 
@@ -97,7 +96,7 @@ public:
     // inline void rotate(const glm::vec3 &rot) { rotation += rot; }
     // inline void scale(const glm::vec3 &scale) { this->scale += scale; }
 
-    
+
     void update()
     {
     }
