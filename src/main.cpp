@@ -1,55 +1,49 @@
-#include <vector>
-
-#include "Vertex.hpp"
 #include "window.hpp"
-#include "Shader.hpp"
-#include "Texture.hpp"
-#include "Material.hpp"
-
-#include <glm/gtc/matrix_transform.hpp>
+#include "Mesh.hpp"
 
 
-std::vector<Vertex> vertices =
+Vertex vertices[] =
 {
     // position                         // color                        // texcoord             // normal
     // Front face (+Z)
-    {glm::vec3(-0.5f, 0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, 0.0f, 1.0f)},   // Top-Left
-    {glm::vec3(-0.5f, -0.5f, 0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, 0.0f, 1.0f)},   // Bottom-Left
-    {glm::vec3(0.5f, -0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, 0.0f, 1.0f)},   // Bottom-Right
-    {glm::vec3(0.5f, 0.5f, 0.5f),       glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, 0.0f, 1.0f)},   // Top-Right
+    glm::vec3(-0.5f, 0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, 0.0f, 1.0f),   // Top-Left
+    glm::vec3(-0.5f, -0.5f, 0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, 0.0f, 1.0f),   // Bottom-Left
+    glm::vec3(0.5f, -0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, 0.0f, 1.0f),   // Bottom-Right
+    glm::vec3(0.5f, 0.5f, 0.5f),       glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, 0.0f, 1.0f),   // Top-Right
 
     // Back face (-Z)
-    {glm::vec3(0.5f, 0.5f, -0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, 0.0f, -1.0f)},  // Top-Left
-    {glm::vec3(0.5f, -0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, 0.0f, -1.0f)},  // Bottom-Left
-    {glm::vec3(-0.5f, -0.5f, -0.5f),    glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, 0.0f, -1.0f)},  // Bottom-Right
-    {glm::vec3(-0.5f, 0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, 0.0f, -1.0f)},  // Top-Right
+    glm::vec3(0.5f, 0.5f, -0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, 0.0f, -1.0f),  // Top-Left
+    glm::vec3(0.5f, -0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, 0.0f, -1.0f),  // Bottom-Left
+    glm::vec3(-0.5f, -0.5f, -0.5f),    glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, 0.0f, -1.0f),  // Bottom-Right
+    glm::vec3(-0.5f, 0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, 0.0f, -1.0f),  // Top-Right
 
     // Left face (-X)
-    {glm::vec3(-0.5f, 0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(-1.0f, 0.0f, 0.0f)},  // Top-Left
-    {glm::vec3(-0.5f, -0.5f, -0.5f),    glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(-1.0f, 0.0f, 0.0f)},  // Bottom-Left
-    {glm::vec3(-0.5f, -0.5f, 0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(-1.0f, 0.0f, 0.0f)},  // Bottom-Right
-    {glm::vec3(-0.5f, 0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(-1.0f, 0.0f, 0.0f)},  // Top-Right
+    glm::vec3(-0.5f, 0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(-1.0f, 0.0f, 0.0f),  // Top-Left
+    glm::vec3(-0.5f, -0.5f, -0.5f),    glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(-1.0f, 0.0f, 0.0f),  // Bottom-Left
+    glm::vec3(-0.5f, -0.5f, 0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(-1.0f, 0.0f, 0.0f),  // Bottom-Right
+    glm::vec3(-0.5f, 0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(-1.0f, 0.0f, 0.0f),  // Top-Right
 
     // Right face (+X)
-    {glm::vec3(0.5f, 0.5f, 0.5f),       glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(1.0f, 0.0f, 0.0f)},   // Top-Left
-    {glm::vec3(0.5f, -0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(1.0f, 0.0f, 0.0f)},   // Bottom-Left
-    {glm::vec3(0.5f, -0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(1.0f, 0.0f, 0.0f)},   // Bottom-Right
-    {glm::vec3(0.5f, 0.5f, -0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(1.0f, 0.0f, 0.0f)},   // Top-Right
+    glm::vec3(0.5f, 0.5f, 0.5f),       glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(1.0f, 0.0f, 0.0f),   // Top-Left
+    glm::vec3(0.5f, -0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(1.0f, 0.0f, 0.0f),   // Bottom-Left
+    glm::vec3(0.5f, -0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(1.0f, 0.0f, 0.0f),   // Bottom-Right
+    glm::vec3(0.5f, 0.5f, -0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(1.0f, 0.0f, 0.0f),   // Top-Right
 
     // Top face (+Y)
-    {glm::vec3(-0.5f, 0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, 1.0f, 0.0f)},   // Top-Left
-    {glm::vec3(-0.5f, 0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, 1.0f, 0.0f)},   // Bottom-Left
-    {glm::vec3(0.5f, 0.5f, 0.5f),       glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, 1.0f, 0.0f)},   // Bottom-Right
-    {glm::vec3(0.5f, 0.5f, -0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, 1.0f, 0.0f)},   // Top-Right
+    glm::vec3(-0.5f, 0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, 1.0f, 0.0f),   // Top-Left
+    glm::vec3(-0.5f, 0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, 1.0f, 0.0f),   // Bottom-Left
+    glm::vec3(0.5f, 0.5f, 0.5f),       glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, 1.0f, 0.0f),   // Bottom-Right
+    glm::vec3(0.5f, 0.5f, -0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, 1.0f, 0.0f),   // Top-Right
 
     // Bottom face (-Y)
-    {glm::vec3(-0.5f, -0.5f, 0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, -1.0f, 0.0f)},  // Top-Left
-    {glm::vec3(-0.5f, -0.5f, -0.5f),    glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, -1.0f, 0.0f)},  // Bottom-Left
-    {glm::vec3(0.5f, -0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, -1.0f, 0.0f)},  // Bottom-Right
-    {glm::vec3(0.5f, -0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, -1.0f, 0.0f)},  // Top-Right
+    glm::vec3(-0.5f, -0.5f, 0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, -1.0f, 0.0f),  // Top-Left
+    glm::vec3(-0.5f, -0.5f, -0.5f),    glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 1.0f),  glm::vec3(0.0f, -1.0f, 0.0f),  // Bottom-Left
+    glm::vec3(0.5f, -0.5f, -0.5f),     glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 1.0f),  glm::vec3(0.0f, -1.0f, 0.0f),  // Bottom-Right
+    glm::vec3(0.5f, -0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, -1.0f, 0.0f),  // Top-Right
 };
+unsigned numVertices = sizeof(vertices) / sizeof(Vertex);
 
-std::vector<GLuint> indices =
+GLuint indices[] =
 {
     0,  1,  2,  0,  2,  3,  // Front face
     4,  5,  6,  4,  6,  7,  // Back face
@@ -58,6 +52,7 @@ std::vector<GLuint> indices =
     16, 17, 18, 16, 18, 19, // Top face
     20, 21, 22, 20, 22, 23  // Bottom face
 };
+unsigned numIndices = sizeof(indices) / sizeof(GLuint);
 
 
 int main()
@@ -97,50 +92,20 @@ int main()
     // Initialize Shaders
     Shader coreShader("core.vert.glsl", "core.frag.glsl");
 
-    // Create and bind VAO, VBO, and EBO
-    GLuint VAO;
-    glCreateVertexArrays(1, &VAO);
-    glBindVertexArray(VAO);
-
-    GLuint VBO;
-    glGenBuffers(1, &VBO);
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex), vertices.data(), GL_STATIC_DRAW);
-
-    GLuint EBO;
-    glGenBuffers(1, &EBO);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
-
-    // Vertex Attribute Pointers
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, position));
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, color));
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, texcoord));
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, normal));
-    glEnableVertexAttribArray(3);
-
+    // Initialize Mesh
+    Mesh mesh(vertices, numVertices, indices, numIndices);
 
     // Initialize Textures
     Texture dirtTex("dirt.png", 0);
 
-    //Initialize Materials
-    Material dirtMaterial(glm::vec3(0.1f), glm::vec3(1.0f), glm::vec3(0.1f), dirtTex.getTexUnit(), dirtTex.getTexUnit());
+    // Initialize Materials
+    Material dirtMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.1f), dirtTex.getTexUnit(), dirtTex.getTexUnit());
 
 
     // Model Transformation
     glm::vec3 position(0.0f, 0.0f, 0.0f);
     glm::vec3 rotation(0.0f);
     glm::vec3 scale(1.0f);
-
-    glm::mat4 ModelMatrix(1.0f);
-    ModelMatrix = glm::translate(ModelMatrix, position);
-    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-    ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-    ModelMatrix = glm::scale(ModelMatrix, scale);
 
     // Camera
     glm::vec3 camPos(0.0f, 1.0f, 2.0f);
@@ -150,7 +115,7 @@ int main()
     ViewMatrix = glm::lookAt(camPos, camPos + Window::cameraFront, worldUp);
 
     float fov = 85.0f;
-    float nearPlane = 0.1f;
+    float nearPlane = 0.01f;
     float farPlane = 1000.0f;
     glm::mat4 ProjectionMatrix(1.0f);
     ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
@@ -162,7 +127,6 @@ int main()
     coreShader.use();
     coreShader.setVec3("lightPos0", lightPos0);
     coreShader.setVec3("cameraPos", camPos);
-    coreShader.setMat4("ModelMatrix", ModelMatrix);
     coreShader.setMat4("ViewMatrix", ViewMatrix);
     coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
     coreShader.unuse();
@@ -209,11 +173,7 @@ int main()
         // Activate textures
         dirtTex.bind();
 
-        // Bind the vertex array
-        glBindVertexArray(VAO);
-
-        // Draw
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
+        mesh.render(&coreShader);
 
         // End draw
         glfwSwapBuffers(window);
@@ -225,10 +185,6 @@ int main()
     }
 
     // Cleanup
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
-
     glfwDestroyWindow(window);
     glfwTerminate();
 
