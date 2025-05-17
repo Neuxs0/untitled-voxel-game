@@ -1,8 +1,8 @@
 #include <vector>
 
 #include "window.h"
-#include "rendering/Vertex.h"
-#include "shader/Shader.h"
+#include "Vertex.h"
+#include "Shader.h"
 #include "texture/texture_loader.h"
 
 #include <glm/gtc/type_ptr.hpp>
