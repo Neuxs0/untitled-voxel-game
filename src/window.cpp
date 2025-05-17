@@ -1,6 +1,5 @@
 #include "window.h"
 #include <iostream>
-#include <GL/glew.h>
 
 namespace Window {
 
@@ -35,6 +34,12 @@ void updateInput(GLFWwindow* window, glm::vec3& position, glm::vec3& rotation, g
     }
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
         position.y -= 0.02f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) {
+        rotation.y -= 1.0f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) {
+        rotation.y += 1.0f;
     }
 }
 
