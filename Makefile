@@ -16,37 +16,59 @@ ASSETS_DEST_DIR = $(DIST_DIR)/assets
 SOURCES = $(shell find $(SRC_DIR) -name '*.cpp')
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 
-DIRS_TO_CREATE = $(OBJ_DIR) $(DIST_DIR) $(ASSETS_DEST_DIR)
+ifeq ($(SILENT),true)
+    Q := @
+    VECHO := @:
+else
+    Q :=
+    VECHO := @echo
+endif
 
-.PHONY: all clean run rebuild test copy_assets
+.PHONY: all clean run rebuild test copy_assets test_sequence
 
+# Default target
 all: $(TARGET) copy_assets
 
-$(DIRS_TO_CREATE):
-	mkdir -p $@
+$(OBJ_DIR):
+	$(Q)mkdir -p $@
 
+$(DIST_DIR):
+	$(Q)mkdir -p $@
+
+$(ASSETS_DEST_DIR):
+	$(Q)mkdir -p $@
+
+# Link the target executable
 $(TARGET): $(OBJECTS) | $(DIST_DIR)
-	@echo "Linking $@"
-	$(CXX) $(OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
+	$(VECHO) "Linking $@"
+	$(Q)$(CXX) $(OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
 
+# Compile source files
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
-	@echo "Compiling $< to $@"
-	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) -c $< -o $@
+	$(VECHO) "Compiling $< to $@"
+	$(Q)mkdir -p $(dir $@) # Ensure specific subdirectory for .o file exists (e.g., build/obj/utils/)
+	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
+# Copy assets
 copy_assets: | $(ASSETS_DEST_DIR)
-	@echo "Copying assets to $(ASSETS_DEST_DIR)..."
-	mkdir -p $(ASSETS_DEST_DIR)
-	cp -R $(ASSETS_SRC_DIR)/* $(ASSETS_DEST_DIR)/
+	$(VECHO) "Copying assets to $(ASSETS_DEST_DIR)..."
+	$(Q)cp -R $(ASSETS_SRC_DIR)/* $(ASSETS_DEST_DIR)/
 
+# Clean build artifacts
 clean:
-	@echo "Cleaning build artifacts..."
-	rm -rf $(OBJ_DIR) $(DIST_DIR)
+	$(VECHO) "Cleaning build artifacts..."
+	$(Q)rm -rf $(OBJ_DIR) $(DIST_DIR)
 
+# Run the game
 run: all
-	@echo "Running $(TARGET_NAME) from $(DIST_DIR)..."
-	cd $(DIST_DIR) && ./$(TARGET_NAME)
+	$(VECHO) "Running $(TARGET_NAME) from $(DIST_DIR)..."
+	$(Q)cd $(DIST_DIR) && ./$(TARGET_NAME)
 
+# Clean then build all
 rebuild: clean all
 
-test: clean all run
+test_sequence: clean all run
+
+# Executes the test_sequence silently
+test:
+	@$(MAKE) --no-print-directory SILENT=true test_sequence

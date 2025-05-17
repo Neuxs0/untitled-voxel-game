@@ -3,9 +3,9 @@
 #include "window.h"
 #include "Vertex.h"
 #include "Shader.h"
-#include "texture/texture_loader.h"
+#include "Texture.h"
 
-#include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 
 std::vector<Vertex> vertices =
@@ -85,7 +85,7 @@ int main()
 
 
     // OpenGL Options
-    glfwSwapInterval(1); // 1 for VSync on, 0 for VSync off
+    glfwSwapInterval(0); // 1 for VSync on, 0 for VSync off
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
@@ -129,15 +129,10 @@ int main()
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, normal));
     glEnableVertexAttribArray(3);
 
+
     // Initialize Textures
-    GLuint texture0ID;
-    int texWidth = 0;
-    int texHeight = 0;
-    if (!TextureLoader::loadTexture("assets/textures/dirt.png", texture0ID, texWidth, texHeight))
-    {
-        std::cerr << "Error: main: Failed to initialize texture." << std::endl;
-        return -1;
-    }
+    Texture dirtTex("dirt.png", 0);
+
 
     // Translations
     glm::vec3 position(0.0f);
@@ -186,7 +181,7 @@ int main()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        Window::updateInput(window, position, rotation, scale);
+        Window::updateInput(window, position, rotation);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -212,8 +207,7 @@ int main()
         coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
 
         // Activate textures
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture0ID);
+        dirtTex.bind();
 
         // Draw
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, 0);
@@ -229,11 +223,9 @@ int main()
     
 
     // Cleanup
-    coreShader.~Shader();
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
-    glDeleteTextures(1, &texture0ID);
 
     glfwDestroyWindow(window);
     glfwTerminate();

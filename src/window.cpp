@@ -15,7 +15,7 @@ void framebuffer_resize_callback(GLFWwindow* window, int fbWidth, int fbHeight)
     glViewport(0, 0, fbWidth, fbHeight);
 }
 
-void updateInput(GLFWwindow* window, glm::vec3& position, glm::vec3& rotation, glm::vec3& scale)
+void updateInput(GLFWwindow* window, glm::vec3& position, glm::vec3& rotation)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);

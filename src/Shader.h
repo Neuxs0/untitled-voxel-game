@@ -91,12 +91,9 @@ private:
         char infoLog[512];
         GLint linkSuccess;
 
-        this->id = glCreateProgram();
-        if (this->id == 0)
-        {
-            std::cerr << "Error: Shader: linkProgram: Failed to create shader program object." << std::endl;
-            return;
-        }
+        id = glCreateProgram();
+        if (id == 0)
+            throw std::runtime_error("Error: Shader: linkProgram: Failed to create shader program object.");
 
         // Attach shaders
         glAttachShader(this->id, vertShader);
@@ -110,16 +107,16 @@ private:
         if (!linkSuccess)
         {
             glGetProgramInfoLog(this->id, 512, NULL, infoLog);
-            std::cerr << "Error: Shader: linkProgram: Couldn't link program:" << std::endl
-                      << infoLog << std::endl;
             glDeleteProgram(this->id);
             this->id = 0;
+            std::cout << "Error: Shader: linkProgram: Couldn't link program:\n";
+            throw std::runtime_error(infoLog);
         }
     }
 
 public:
     // Constructor
-    Shader(const std::string &vertFile, const std::string &fragFile, const std::string *geomFile = nullptr)
+    Shader(const std::string &vertFile, const std::string &fragFile, const std::string &geomFile = "")
         : id(0)
     {
         GLuint vertShader = 0;
@@ -129,14 +126,12 @@ public:
         vertShader = loadShader(GL_VERTEX_SHADER, vertFile);
         fragShader = loadShader(GL_FRAGMENT_SHADER, fragFile);
 
-        if (geomFile && !geomFile->empty())
-        {
-            geomShader = loadShader(GL_GEOMETRY_SHADER, *geomFile);
-        }
+        if (!geomFile.empty())
+            geomShader = loadShader(GL_GEOMETRY_SHADER, geomFile);
 
         if (vertShader == 0 || fragShader == 0)
         {
-            std::cerr << "Error: Shader: Constructor: Failed to load shaders. Shader program not created." << std::endl;
+            throw std::runtime_error("Error: Shader: Failed to load shaders. Shader program not created.");
             
             if (vertShader != 0)
                 glDeleteShader(vertShader);
@@ -148,17 +143,15 @@ public:
             return;
         }
 
-        this->linkProgram(vertShader, fragShader, geomShader);
+        linkProgram(vertShader, fragShader, geomShader);
 
         // Cleanup shaders
-        if (this->id != 0)
+        if (id != 0)
         {
-            glDetachShader(this->id, vertShader);
-            glDetachShader(this->id, fragShader);
+            glDetachShader(id, vertShader);
+            glDetachShader(id, fragShader);
             if (geomShader != 0)
-            {
-                glDetachShader(this->id, geomShader);
-            }
+                glDetachShader(id, geomShader);
         }
 
         glDeleteShader(vertShader);
@@ -175,14 +168,11 @@ public:
 
     Shader(const Shader &) = delete;
     Shader &operator=(const Shader &) = delete;
-
     Shader(Shader &&other) noexcept
         : id(other.id), uniformLocationCache(std::move(other.uniformLocationCache))
     {
         other.id = 0;
     }
-
-    // Move assignment operator
     Shader &operator=(Shader &&other) noexcept
     {
         if (this != &other)
@@ -198,12 +188,12 @@ public:
         return *this;
     }
 
-    GLuint getId() const { return this->id; }
+    GLuint getId() const { return id; }
 
     void use() const
     {
         if (id != 0)
-            glUseProgram(this->id);
+            glUseProgram(id);
     }
     void unuse() const { glUseProgram(0); }
 
