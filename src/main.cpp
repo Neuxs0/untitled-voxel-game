@@ -1,15 +1,15 @@
-#include <iostream>
 #include <vector>
 
 #include "window.h"
 #include "rendering/Vertex.h"
-#include "shader/shader_loader.h"
+#include "shader/Shader.h"
 #include "texture/texture_loader.h"
 
-#include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-std::vector<Vertex> vertices = {
+
+std::vector<Vertex> vertices =
+{
     // position                         // color                        // texcoord             // normal
     // Front face (+Z)
     {glm::vec3(-0.5f, 0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(0.0f, 0.0f),  glm::vec3(0.0f, 0.0f, 1.0f)},   // Top-Left
@@ -48,7 +48,8 @@ std::vector<Vertex> vertices = {
     {glm::vec3(0.5f, -0.5f, 0.5f),      glm::vec3(1.0f, 1.0f, 1.0f),    glm::vec2(1.0f, 0.0f),  glm::vec3(0.0f, -1.0f, 0.0f)},  // Top-Right
 };
 
-std::vector<GLuint> indices = {
+std::vector<GLuint> indices =
+{
     0,  1,  2,  0,  2,  3,  // Front face
     4,  5,  6,  4,  6,  7,  // Back face
     8,  9,  10, 8,  10, 11, // Left face
@@ -57,7 +58,9 @@ std::vector<GLuint> indices = {
     20, 21, 22, 20, 22, 23  // Bottom face
 };
 
-int main() {
+
+int main()
+{
     // Window Settings
     const int winWidth = 640;
     const int winHeight = 480;
@@ -66,10 +69,10 @@ int main() {
     bool windowInitSuccess = false;
     GLFWwindow* window = Window::initialize(winWidth, winHeight, winTitle, windowInitSuccess);
 
-    if (!windowInitSuccess || !window) {
+    if (!windowInitSuccess || !window)
         return -1;
-    }
 
+    
     // Show OpenGL Details
     std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
     std::cout << "OpenGL Renderer: " << glGetString(GL_RENDERER) << std::endl;
@@ -79,6 +82,7 @@ int main() {
     int fbWidth, fbHeight;
 
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
+
 
     // OpenGL Options
     glfwSwapInterval(1); // 1 for VSync on, 0 for VSync off
@@ -90,13 +94,9 @@ int main() {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+
     // Initialize Shaders
-    GLuint core_program;
-    if (!ShaderLoader::loadShadersFromFile(core_program, "assets/shaders/core.vert.glsl", "assets/shaders/core.frag.glsl")) {
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return -1;
-    }
+    Shader coreShader("core.vert.glsl", "core.frag.glsl");
 
 
     // Create and bind VAO, VBO, and EBO
@@ -133,7 +133,8 @@ int main() {
     GLuint texture0ID;
     int texWidth = 0;
     int texHeight = 0;
-    if (!TextureLoader::loadTexture("assets/textures/dirt.png", texture0ID, texWidth, texHeight)) {
+    if (!TextureLoader::loadTexture("assets/textures/dirt.png", texture0ID, texWidth, texHeight))
+    {
         std::cerr << "Error: main: Failed to initialize texture." << std::endl;
         return -1;
     }
@@ -171,32 +172,26 @@ int main() {
 
 
     // Initialize uniforms
-    glUseProgram(core_program);
+    coreShader.use();
 
-    GLint texture0Loc = glGetUniformLocation(core_program, "texture0");
-    GLint lightPos0Loc = glGetUniformLocation(core_program, "lightPos0");
-    GLint cameraPosLoc = glGetUniformLocation(core_program, "cameraPos");
-    GLint modelMatrixLoc = glGetUniformLocation(core_program, "ModelMatrix");
-    GLint viewMatrixLoc = glGetUniformLocation(core_program, "ViewMatrix");
-    GLint projectionMatrixLoc = glGetUniformLocation(core_program, "ProjectionMatrix");
+    coreShader.setMat4("ModelMatrix", ModelMatrix);
+    coreShader.setMat4("ViewMatrix", ViewMatrix);
+    coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
+    coreShader.setVec3("lightPos0", lightPos0);
+    coreShader.setVec3("cameraPos", camPosition);
 
-    glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
-    glUniformMatrix4fv(viewMatrixLoc, 1, GL_FALSE, glm::value_ptr(ViewMatrix));
-    glUniformMatrix4fv(projectionMatrixLoc, 1, GL_FALSE, glm::value_ptr(ProjectionMatrix));
-    glUniform3fv(lightPos0Loc, 1, glm::value_ptr(lightPos0));
-    glUniform3fv(cameraPosLoc, 1, glm::value_ptr(camPosition));
-
-    glUseProgram(0);
+    coreShader.unuse();
 
     // App Loop
-    while (!glfwWindowShouldClose(window)) {
+    while (!glfwWindowShouldClose(window))
+    {
         glfwPollEvents();
         Window::updateInput(window, position, rotation, scale);
 
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-        glUseProgram(core_program);
+        coreShader.use();
         glBindVertexArray(VAO);
 
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
@@ -212,9 +207,9 @@ int main() {
         ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
 
         // Update uniforms
-        glUniform1i(texture0Loc, 0);
-        glUniformMatrix4fv(modelMatrixLoc, 1, GL_FALSE, glm::value_ptr(ModelMatrix));
-        glUniformMatrix4fv(projectionMatrixLoc, 1, GL_FALSE, glm::value_ptr(ProjectionMatrix));
+        coreShader.setBool("texture0", 0);
+        coreShader.setMat4("ModelMatrix", ModelMatrix);
+        coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
 
         // Activate textures
         glActiveTexture(GL_TEXTURE0);
@@ -234,7 +229,7 @@ int main() {
     
 
     // Cleanup
-    glDeleteProgram(core_program);
+    coreShader.~Shader();
     glDeleteVertexArrays(1, &VAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);

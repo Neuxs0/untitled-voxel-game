@@ -6,18 +6,21 @@
 
 namespace Utils {
 
-std::string readFileToString(const std::string &path, bool &success) {
+std::string readFile(const std::string &path, bool &success)
+{
     std::ifstream file(path, std::ios::binary);
-    if (!file.is_open()) {
-        std::cerr << "Error: Utils: readFileToString: Failed to open file: " << path << std::endl;
+    if (!file.is_open())
+    {
+        std::cerr << "Error: Utils: readFile: Failed to open file: " << path << std::endl;
         success = false;
         return "";
     }
 
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
 
-    if (file.bad()) {
-        std::cerr << "Error: Utils: readFileToString: Failed to read file: " << path << std::endl;
+    if (file.bad())
+    {
+        std::cerr << "Error: Utils: readFile: Failed to read file: " << path << std::endl;
         success = false;
         return "";
     }
