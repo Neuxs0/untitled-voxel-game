@@ -1,18 +1,11 @@
 #pragma once
 
-#include <iostream>
-#include <string>
 #include <unordered_map>
-
-#include <GL/glew.h>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
 
 #include "utils/files.h"
 
 class Shader
 {
-
 private:
     GLuint id;
     mutable std::unordered_map<std::string, GLint> uniformLocationCache;
@@ -188,14 +181,14 @@ public:
         return *this;
     }
 
-    GLuint getId() const { return id; }
+    inline GLuint getId() const { return id; }
 
     void use() const
     {
         if (id != 0)
             glUseProgram(id);
     }
-    void unuse() const { glUseProgram(0); }
+    inline void unuse() const { glUseProgram(0); }
 
     // Setters
     void setBool(const std::string &name, bool value) const

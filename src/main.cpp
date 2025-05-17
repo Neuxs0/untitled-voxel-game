@@ -154,12 +154,12 @@ int main()
 
     // Initialize uniforms
     coreShader.use();
+    coreShader.setInt("texture0", dirtTex.getTexUnit());
+    coreShader.setVec3("lightPos0", lightPos0);
+    coreShader.setVec3("cameraPos", camPos);
     coreShader.setMat4("ModelMatrix", ModelMatrix);
     coreShader.setMat4("ViewMatrix", ViewMatrix);
     coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
-    coreShader.setVec3("lightPos0", lightPos0);
-    coreShader.setVec3("cameraPos", camPos);
-    coreShader.setInt("texture0", 0);
     coreShader.unuse();
 
     // App Loop
@@ -196,11 +196,11 @@ int main()
         glBindVertexArray(VAO);
 
         // Update uniforms
-        coreShader.setBool("texture0", 0);
-        coreShader.setMat4("ViewMatrix", ViewMatrix);
-        coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
+        coreShader.setBool("texture0", dirtTex.getTexUnit());
         coreShader.setVec3("cameraPos", camPos);
         coreShader.setVec3("lightPos0", lightPos0);
+        coreShader.setMat4("ViewMatrix", ViewMatrix);
+        coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
 
         // Activate textures
         dirtTex.bind();

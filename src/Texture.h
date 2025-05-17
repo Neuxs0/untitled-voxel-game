@@ -1,7 +1,6 @@
 #pragma once
 
 #include <iostream>
-#include <stdexcept>
 #include <GL/glew.h>
 
 #include <soil2/SOIL2.h>
@@ -88,7 +87,8 @@ public:
         return *this;
     }
 
-    GLuint getId() const { return id; }
+    inline GLuint getId() const { return id; }
+    inline GLint getTexUnit() const { return texUnit; }
 
     void bind()
     {
