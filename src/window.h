@@ -6,8 +6,18 @@
 
 namespace Window
 {
+    extern glm::vec3 cameraFront;
+    extern glm::vec3 cameraUp;
+    extern glm::vec3 cameraRight;
+    extern float yaw;
+    extern float pitch;
+    extern double lastX;
+    extern double lastY;
+    extern bool firstMouse;
+
     void glfw_error_callback(int error, const char *description);
-    void framebuffer_resize_callback(GLFWwindow* window, int fbWidth, int fbHeight);
-    GLFWwindow* initialize(const int width, const int height, const char* title, bool &success);
-    void updateInput(GLFWwindow* window, glm::vec3& position, glm::vec3& rotation);
+    void framebuffer_resize_callback(GLFWwindow *window, int fbWidth, int fbHeight);
+    void mouse_callback(GLFWwindow *window, double xpos, double ypos);
+    GLFWwindow *initialize(const int width, const int height, const char *title, bool &success);
+    void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos);
 }

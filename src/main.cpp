@@ -61,17 +61,19 @@ std::vector<GLuint> indices =
 
 int main()
 {
+    float deltaTime = 0.0f;
+    float lastFrame = 0.0f;
+
     // Window Settings
-    const int winWidth = 640;
-    const int winHeight = 480;
-    const char* winTitle = "Untitled Voxel Game";
+    const int winWidth = 800;
+    const int winHeight = 600;
+    const char* winTitle = "Untitled Voxel Game - Camera Demo";
 
     bool windowInitSuccess = false;
     GLFWwindow* window = Window::initialize(winWidth, winHeight, winTitle, windowInitSuccess);
 
     if (!windowInitSuccess || !window)
         return -1;
-
     
     // Show OpenGL Details
     std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
@@ -80,13 +82,10 @@ int main()
     std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
     int fbWidth, fbHeight;
-
     glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
-
     // OpenGL Options
-    glfwSwapInterval(0); // 1 for VSync on, 0 for VSync off
-
+    glfwSwapInterval(0); // 0 for VSync off, 1 for VSync on
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -94,10 +93,8 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-
     // Initialize Shaders
     Shader coreShader("core.vert.glsl", "core.frag.glsl");
-
 
     // Create and bind VAO, VBO, and EBO
     GLuint VAO;
@@ -114,28 +111,21 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(GLuint), indices.data(), GL_STATIC_DRAW);
 
-
     // Vertex Attribute Pointers
-    // position
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, position));
     glEnableVertexAttribArray(0);
-    // color
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, color));
     glEnableVertexAttribArray(1);
-    // texcoord
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, texcoord));
     glEnableVertexAttribArray(2);
-    // normal
     glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*) offsetof(Vertex, normal));
     glEnableVertexAttribArray(3);
-
 
     // Initialize Textures
     Texture dirtTex("dirt.png", 0);
 
-
-    // Translations
-    glm::vec3 position(0.0f);
+    // Model Transformation
+    glm::vec3 position(0.0f, 0.0f, 0.0f);
     glm::vec3 rotation(0.0f);
     glm::vec3 scale(1.0f);
 
@@ -144,16 +134,14 @@ int main()
     ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
     ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
     ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-    ModelMatrix = glm::scale(ModelMatrix, glm::vec3(scale));
+    ModelMatrix = glm::scale(ModelMatrix, scale);
 
-
-    // View projection
+    // Camera
+    glm::vec3 camPos(0.0f, 1.0f, 2.0f);
     glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
-    glm::vec3 cameFront(0.0f, 0.0f, -1.0f);
-    glm::vec3 camPosition(0.0f, 0.0f, 2.0f);
 
     glm::mat4 ViewMatrix(1.0f);
-    ViewMatrix = glm::lookAt(camPosition, camPosition + cameFront, worldUp);
+    ViewMatrix = glm::lookAt(camPos, camPos + Window::cameraFront, worldUp);
 
     float fov = 85.0f;
     float nearPlane = 0.1f;
@@ -161,33 +149,30 @@ int main()
     glm::mat4 ProjectionMatrix(1.0f);
     ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
 
-
     // Lighting
-    glm::vec3 lightPos0(0.0f, 0.0f, 1.0f);
-
+    glm::vec3 lightPos0(1.0f, 2.0f, 1.0f);
 
     // Initialize uniforms
     coreShader.use();
-
     coreShader.setMat4("ModelMatrix", ModelMatrix);
     coreShader.setMat4("ViewMatrix", ViewMatrix);
     coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
     coreShader.setVec3("lightPos0", lightPos0);
-    coreShader.setVec3("cameraPos", camPosition);
-
+    coreShader.setVec3("cameraPos", camPos);
+    coreShader.setInt("texture0", 0);
     coreShader.unuse();
 
     // App Loop
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        Window::updateInput(window, position, rotation);
 
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        // DeltaTime
+        float currentFrame = glfwGetTime();
+        deltaTime = currentFrame - lastFrame;
+        lastFrame = currentFrame;
 
-        coreShader.use();
-        glBindVertexArray(VAO);
+        Window::updateInput(window, deltaTime, camPos);
 
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
@@ -201,10 +186,21 @@ int main()
 
         ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
 
+        ViewMatrix = glm::lookAt(camPos, camPos + Window::cameraFront, worldUp);
+
+        // Clear screen
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+        coreShader.use();
+        glBindVertexArray(VAO);
+
         // Update uniforms
         coreShader.setBool("texture0", 0);
-        coreShader.setMat4("ModelMatrix", ModelMatrix);
+        coreShader.setMat4("ViewMatrix", ViewMatrix);
         coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
+        coreShader.setVec3("cameraPos", camPos);
+        coreShader.setVec3("lightPos0", lightPos0);
 
         // Activate textures
         dirtTex.bind();
@@ -220,7 +216,6 @@ int main()
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, 0);
     }
-    
 
     // Cleanup
     glDeleteVertexArrays(1, &VAO);

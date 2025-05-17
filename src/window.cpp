@@ -4,6 +4,15 @@
 namespace Window
 {
 
+glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+glm::vec3 cameraRight = glm::normalize(glm::cross(cameraFront, cameraUp));
+float yaw = -90.0f;
+float pitch = 0.0f;
+double lastX = 0.0;
+double lastY = 0.0;
+bool firstMouse = true;
+
 void glfw_error_callback(int error, const char *description)
 {
     std::cerr << "GLFW Error (Code " << error << "): " << description << std::endl;
@@ -15,30 +24,65 @@ void framebuffer_resize_callback(GLFWwindow* window, int fbWidth, int fbHeight)
     glViewport(0, 0, fbWidth, fbHeight);
 }
 
-void updateInput(GLFWwindow* window, glm::vec3& position, glm::vec3& rotation)
+void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 {
+    (void)window; // To prevent unused parameter warning
+    if (firstMouse)
+    {
+        lastX = xpos;
+        lastY = ypos;
+        firstMouse = false;
+    }
+
+    float xoffset = static_cast<float>(xpos - lastX);
+    float yoffset = static_cast<float>(lastY - ypos);
+    lastX = xpos;
+    lastY = ypos;
+
+    float sensitivity = 0.1f;
+    xoffset *= sensitivity;
+    yoffset *= sensitivity;
+
+    yaw += xoffset;
+    pitch += yoffset;
+
+    if (pitch > 89.0f)
+        pitch = 89.0f;
+    if (pitch < -89.0f)
+        pitch = -89.0f;
+
+    glm::vec3 front;
+    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+    front.y = sin(glm::radians(pitch));
+    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+    cameraFront = glm::normalize(front);
+}
+
+void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos)
+{
+    const float camSpeed = 1.7f * deltaTime;
+
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
 
+    glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 localCameraRight = glm::normalize(glm::cross(cameraFront, worldUp));
+
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        position.z += 0.02f;
+        camPos += cameraFront * camSpeed;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        position.z -= 0.02f;
+        camPos -= cameraFront * camSpeed;
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        position.x += 0.02f;
+        camPos -= localCameraRight * camSpeed;
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        position.x -= 0.02f;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        position.y += 0.02f;
+        camPos += localCameraRight * camSpeed;
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        position.y -= 0.02f;
-    if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-        rotation.y -= 1.0f;
-    if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
-        rotation.y += 1.0f;
+        camPos += worldUp * camSpeed;
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        camPos -= worldUp * camSpeed;
 }
 
-GLFWwindow* initialize(const int width, const int height, const char* title, bool &initSuccess)
+GLFWwindow* initialize(const int width, const int height, const char *title, bool &initSuccess)
 {
     glfwSetErrorCallback(Window::glfw_error_callback);
 
@@ -50,24 +94,27 @@ GLFWwindow* initialize(const int width, const int height, const char* title, boo
     }
 
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    // GLFW 4.6
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
-    // glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // For MacOS if needed
 
     GLFWwindow *window = glfwCreateWindow(width, height, title, NULL, NULL);
-    if (window == NULL) {
+    if (window == NULL)
+    {
         std::cerr << "Error: Window: initialize: GLFW Window failed to create." << std::endl;
         glfwTerminate();
         initSuccess = false;
         return nullptr;
     }
 
-    glfwSetFramebufferSizeCallback(window, Window::framebuffer_resize_callback);
     glfwMakeContextCurrent(window);
+    glfwSetFramebufferSizeCallback(window, Window::framebuffer_resize_callback);
 
-    // Initialize GLEW
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+    lastX = static_cast<double>(width) / 2.0;
+    lastY = static_cast<double>(height) / 2.0;
+    glfwSetCursorPosCallback(window, Window::mouse_callback);
+
     glewExperimental = GL_TRUE;
     GLenum glewErr = glewInit();
     if (glewErr != GLEW_OK)
@@ -78,7 +125,7 @@ GLFWwindow* initialize(const int width, const int height, const char* title, boo
         initSuccess = false;
         return nullptr;
     }
-    
+
     initSuccess = true;
     return window;
 }
