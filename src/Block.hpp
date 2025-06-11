@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <glm/glm.hpp>
 
+// An enumeration of all possible block types.
 enum class BlockType : uint8_t
 {
     AIR = 0,
@@ -12,15 +13,18 @@ enum class BlockType : uint8_t
     WATER
 };
 
+// A struct containing the data for a block.
 struct BlockData
 {
     glm::vec4 color;
     bool isOpaque;
 };
 
+// A static class for getting block data.
 class Block
 {
 public:
+    // Returns the data for a given block type.
     static BlockData get(BlockType type)
     {
         switch (type)

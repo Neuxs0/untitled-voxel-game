@@ -7,14 +7,15 @@
 #include "Vertex.hpp"
 #include "Shader.hpp"
 
+// Represents a mesh of vertices.
 class Mesh
 {
 private:
     unsigned numVertices;
-
     GLuint VAO;
     GLuint VBO;
 
+    // Initializes the Vertex Array Object.
     void initVAO(const std::vector<Vertex> &vertices)
     {
         this->numVertices = vertices.size();
@@ -38,17 +39,20 @@ private:
     }
 
 public:
+    // Constructor.
     Mesh(const std::vector<Vertex> &vertices)
     {
         initVAO(vertices);
     }
 
+    // Destructor.
     ~Mesh()
     {
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
     }
 
+    // Renders the mesh.
     void render()
     {
         glBindVertexArray(VAO);

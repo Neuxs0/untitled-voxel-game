@@ -2,6 +2,7 @@
 
 #include "Shader.hpp"
 
+// Represents the material properties of an object.
 class Material
 {
 private:
@@ -10,15 +11,14 @@ private:
     glm::vec3 specular;
 
 public:
+    // Constructor
     Material(glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular)
-        : ambient(ambient), diffuse(diffuse), specular(specular)
-    {
-        
-    }
+        : ambient(ambient), diffuse(diffuse), specular(specular) {}
 
+    // Destructor
     ~Material() {}
 
-
+    // Sends the material properties to the shader.
     void sendToShader(Shader &program)
     {
         program.setVec3("material.ambient", ambient);

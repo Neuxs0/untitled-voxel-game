@@ -1,154 +1,162 @@
 #include <iostream>
 #include <GL/glew.h>
-
 #include "Window.hpp"
 
 namespace Window
 {
 
-glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-glm::vec3 cameraRight = glm::normalize(glm::cross(cameraFront, cameraUp));
-float yaw = -90.0f;
-float pitch = 0.0f;
-double lastX = 0.0;
-double lastY = 0.0;
-bool firstMouse = true;
-bool wireframeEnabled = false;
-static bool key0_pressed_last_frame = false;
+    // Camera vectors
+    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
+    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+    glm::vec3 cameraRight = glm::normalize(glm::cross(cameraFront, cameraUp));
 
-void glfw_error_callback(int error, const char *description)
-{
-    std::cerr << "GLFW Error (Code " << error << "): " << description << std::endl;
-}
+    // Camera rotation
+    float yaw = -90.0f;
+    float pitch = 0.0f;
 
-void framebuffer_resize_callback(GLFWwindow* window, int fbWidth, int fbHeight)
-{
-    (void)window; // To prevent unused parameter warning
-    glViewport(0, 0, fbWidth, fbHeight);
-}
+    // Mouse position
+    double lastX = 0.0;
+    double lastY = 0.0;
+    bool firstMouse = true;
 
-void mouse_callback(GLFWwindow *window, double xpos, double ypos)
-{
-    (void)window; // To prevent unused parameter warning
-    if (firstMouse)
+    // Wireframe mode toggle
+    bool wireframeEnabled = false;
+    static bool key0_pressed_last_frame = false;
+
+    // GLFW error callback function.
+    void glfw_error_callback(int error, const char *description)
     {
+        std::cerr << "GLFW Error (Code " << error << "): " << description << std::endl;
+    }
+
+    // GLFW framebuffer resize callback function.
+    void framebuffer_resize_callback(GLFWwindow *window, int fbWidth, int fbHeight)
+    {
+        (void)window; // Unused parameter
+        glViewport(0, 0, fbWidth, fbHeight);
+    }
+
+    // GLFW mouse movement callback function.
+    void mouse_callback(GLFWwindow *window, double xpos, double ypos)
+    {
+        (void)window; // Unused parameter
+        if (firstMouse)
+        {
+            lastX = xpos;
+            lastY = ypos;
+            firstMouse = false;
+        }
+
+        float xoffset = static_cast<float>(xpos - lastX);
+        float yoffset = static_cast<float>(lastY - ypos);
         lastX = xpos;
         lastY = ypos;
-        firstMouse = false;
+
+        float sensitivity = 0.1f;
+        xoffset *= sensitivity;
+        yoffset *= sensitivity;
+
+        yaw += xoffset;
+        pitch += yoffset;
+
+        if (pitch > 89.0f)
+            pitch = 89.0f;
+        if (pitch < -89.0f)
+            pitch = -89.0f;
+
+        glm::vec3 front;
+        front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        front.y = sin(glm::radians(pitch));
+        front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        cameraFront = glm::normalize(front);
     }
 
-    float xoffset = static_cast<float>(xpos - lastX);
-    float yoffset = static_cast<float>(lastY - ypos);
-    lastX = xpos;
-    lastY = ypos;
-
-    float sensitivity = 0.1f;
-    xoffset *= sensitivity;
-    yoffset *= sensitivity;
-
-    yaw += xoffset;
-    pitch += yoffset;
-
-    if (pitch > 89.0f)
-        pitch = 89.0f;
-    if (pitch < -89.0f)
-        pitch = -89.0f;
-
-    glm::vec3 front;
-    front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    front.y = sin(glm::radians(pitch));
-    front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    cameraFront = glm::normalize(front);
-}
-
-void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos)
-{
-    const float camSpeed = 3.7f * deltaTime;
-
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, GLFW_TRUE);
-
-    glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 localCameraRight = glm::normalize(glm::cross(cameraFront, worldUp));
-
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-        camPos += cameraFront * camSpeed;
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-        camPos -= cameraFront * camSpeed;
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-        camPos -= localCameraRight * camSpeed;
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-        camPos += localCameraRight * camSpeed;
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-        camPos += worldUp * camSpeed;
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-        camPos -= worldUp * camSpeed;
-    
-    
-    bool key0_is_pressed = glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS;
-    
-    if (key0_is_pressed && !key0_pressed_last_frame)
+    // Process input from the user.
+    void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos)
     {
-        wireframeEnabled = !wireframeEnabled;
-        if (wireframeEnabled)
-            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        else
-            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        const float camSpeed = 3.7f * deltaTime;
+
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+        glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::vec3 localCameraRight = glm::normalize(glm::cross(cameraFront, worldUp));
+
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            camPos += cameraFront * camSpeed;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            camPos -= cameraFront * camSpeed;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            camPos -= localCameraRight * camSpeed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            camPos += localCameraRight * camSpeed;
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
+            camPos += worldUp * camSpeed;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+            camPos -= worldUp * camSpeed;
+
+        // Toggle wireframe mode
+        bool key0_is_pressed = glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS;
+        if (key0_is_pressed && !key0_pressed_last_frame)
+        {
+            wireframeEnabled = !wireframeEnabled;
+            if (wireframeEnabled)
+                glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+            else
+                glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        }
+        key0_pressed_last_frame = key0_is_pressed;
     }
 
-    // Update the state for the next frame
-    key0_pressed_last_frame = key0_is_pressed;
-}
-
-GLFWwindow* initialize(const int width, const int height, const char *title, bool &initSuccess)
-{
-    glfwSetErrorCallback(Window::glfw_error_callback);
-
-    if (!glfwInit())
+    // Initialize GLFW, GLEW, and create a window.
+    GLFWwindow *initialize(const int width, const int height, const char *title, bool &initSuccess)
     {
-        std::cerr << "Error: Window: initialize: glfwInit() failed." << std::endl;
-        initSuccess = false;
-        return nullptr;
+        glfwSetErrorCallback(Window::glfw_error_callback);
+
+        if (!glfwInit())
+        {
+            std::cerr << "Error: Window: initialize: glfwInit() failed." << std::endl;
+            initSuccess = false;
+            return nullptr;
+        }
+
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+        glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+        glfwWindowHintString(GLFW_X11_CLASS_NAME, "untitled_voxel_game");
+        glfwWindowHintString(GLFW_WAYLAND_APP_ID, "untitled_voxel_game");
+
+        GLFWwindow *window = glfwCreateWindow(width, height, title, NULL, NULL);
+        if (window == NULL)
+        {
+            std::cerr << "Error: Window: initialize: GLFW Window failed to create." << std::endl;
+            glfwTerminate();
+            initSuccess = false;
+            return nullptr;
+        }
+
+        glfwMakeContextCurrent(window);
+        glfwSetFramebufferSizeCallback(window, Window::framebuffer_resize_callback);
+
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        lastX = static_cast<double>(width) / 2.0;
+        lastY = static_cast<double>(height) / 2.0;
+        glfwSetCursorPosCallback(window, Window::mouse_callback);
+
+        glewExperimental = GL_TRUE;
+        GLenum glewErr = glewInit();
+        if (glewErr != GLEW_OK)
+        {
+            std::cerr << "Error: Window: initialize: GLEW Initialization Failed: " << glewGetErrorString(glewErr) << std::endl;
+            glfwDestroyWindow(window);
+            glfwTerminate();
+            initSuccess = false;
+            return nullptr;
+        }
+
+        initSuccess = true;
+        return window;
     }
-
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-    glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
-    glfwWindowHintString(GLFW_X11_CLASS_NAME, "untitled_voxel_game");
-    glfwWindowHintString(GLFW_WAYLAND_APP_ID, "untitled_voxel_game");
-
-    GLFWwindow *window = glfwCreateWindow(width, height, title, NULL, NULL);
-    if (window == NULL)
-    {
-        std::cerr << "Error: Window: initialize: GLFW Window failed to create." << std::endl;
-        glfwTerminate();
-        initSuccess = false;
-        return nullptr;
-    }
-
-    glfwMakeContextCurrent(window);
-    glfwSetFramebufferSizeCallback(window, Window::framebuffer_resize_callback);
-
-    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    lastX = static_cast<double>(width) / 2.0;
-    lastY = static_cast<double>(height) / 2.0;
-    glfwSetCursorPosCallback(window, Window::mouse_callback);
-
-    glewExperimental = GL_TRUE;
-    GLenum glewErr = glewInit();
-    if (glewErr != GLEW_OK)
-    {
-        std::cerr << "Error: Window: initialize: GLEW Initialization Failed: " << glewGetErrorString(glewErr) << std::endl;
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        initSuccess = false;
-        return nullptr;
-    }
-
-    initSuccess = true;
-    return window;
-}
 
 } // namespace Window

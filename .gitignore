@@ -1,5 +1,10 @@
-/.git/
-/.vscode/
-/dev/
-/build/
-/dist/
+# IDE and editor folders
+.vscode/
+.idea/
+
+# Code dump files
+dev/
+
+# Build output
+build/
+dist/

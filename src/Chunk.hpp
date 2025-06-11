@@ -3,34 +3,43 @@
 #include <vector>
 #include <glm/glm.hpp>
 
-// Forward declarations to avoid including full headers here
 class Mesh;
 class Shader;
+class World;
 
 #include "Constants.hpp"
 #include "Vertex.hpp"
 #include "Block.hpp"
 
-class Chunk {
+// Represents a chunk of the world.
+class Chunk
+{
 private:
-    // Returns the block type at a local chunk coordinate
-    BlockType getBlock(int x, int y, int z) const;
-
-    // World position of the chunk's origin (corner)
+    // The world position of the chunk's origin corner.
     glm::vec3 m_position;
-
-    // 3D array storing all block types in this chunk
+    // The coordinate of this chunk in the world grid.
+    glm::ivec3 m_chunkCoord;
+    // The blocks in this chunk.
     BlockType m_blocks[Constants::CHUNK_DIM][Constants::CHUNK_DIM][Constants::CHUNK_DIM];
-
+    // The mesh for opaque blocks.
     Mesh *m_opaqueMesh;
+    // The mesh for transparent blocks.
     Mesh *m_transparentMesh;
 
 public:
-    Chunk(glm::vec3 position);
+    // Constructor.
+    Chunk(glm::ivec3 chunkCoord);
+    // Destructor.
     ~Chunk();
 
-    void generateMesh();
+    // Returns the block at the given local coordinates.
+    BlockType getBlock(int x, int y, int z) const;
 
+    // Generates the mesh for this chunk.
+    void generateMesh(const World &world);
+
+    // Renders the opaque blocks in this chunk.
     void renderOpaque(Shader &shader);
+    // Renders the transparent blocks in this chunk.
     void renderTransparent(Shader &shader);
 };

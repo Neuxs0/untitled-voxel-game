@@ -1,32 +1,32 @@
 #pragma once
 
 #include <unordered_map>
-
 #include <GL/glew.h>
 #include <glm/glm.hpp>
-
 #include "utils/files.hpp"
 
+// Represents a shader program.
 class Shader
 {
 private:
     GLuint id;
     mutable std::unordered_map<std::string, GLint> uniformLocationCache;
 
+    // Gets the location of a uniform variable in the shader program.
     GLint getUniformLocation(const std::string &name) const
     {
         if (uniformLocationCache.count(name))
             return uniformLocationCache.at(name);
         
         GLint location = glGetUniformLocation(id, name.c_str());
-        if (location == -1)
-            if (id != 0)
-                std::cerr << "Error: Shader: getUniformLocation: Uniform '" << name << "' not found in shader program " << id << std::endl;
+        if (location == -1 && id != 0)
+            std::cerr << "Error: Shader: getUniformLocation: Uniform '" << name << "' not found in shader program " << id << std::endl;
         
         uniformLocationCache[name] = location;
         return location;
     }
 
+    // Reads a shader file and returns its content as a string.
     std::string readShader(const std::string &fileName)
     {
         bool success = true;
@@ -45,6 +45,7 @@ private:
         return src;
     }
 
+    // Loads a shader from a file and returns its handle.
     GLuint loadShader(GLenum type, const std::string &fileName)
     {
         char infoLog[512];
@@ -58,7 +59,6 @@ private:
         }
 
         std::string srcStr = this->readShader(fileName);
-
         if (srcStr.empty())
         {
             std::cerr << "Error: Shader: loadShader: Source code for shader " << fileName << " is empty or unreadable." << std::endl;
@@ -70,7 +70,6 @@ private:
         glShaderSource(shaderHandle, 1, &src, NULL);
         glCompileShader(shaderHandle);
         glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &successStatus);
-
         if (!successStatus)
         {
             glGetShaderInfoLog(shaderHandle, 512, NULL, infoLog);
@@ -82,6 +81,7 @@ private:
         return shaderHandle;
     }
 
+    // Links the shaders into a program.
     void linkProgram(GLuint vertShader, GLuint fragShader, GLuint geometryShader)
     {
         char infoLog[512];
@@ -91,14 +91,12 @@ private:
         if (id == 0)
             throw std::runtime_error("Error: Shader: linkProgram: Failed to create shader program object.");
 
-        // Attach shaders
         glAttachShader(this->id, vertShader);
         glAttachShader(this->id, fragShader);
         if (geometryShader != 0)
             glAttachShader(this->id, geometryShader);
 
         glLinkProgram(this->id);
-
         glGetProgramiv(this->id, GL_LINK_STATUS, &linkSuccess);
         if (!linkSuccess)
         {
@@ -111,7 +109,7 @@ private:
     }
 
 public:
-    // Constructor
+    // Constructor.
     Shader(const std::string &vertFile, const std::string &fragFile, const std::string &geomFile = "")
         : id(0)
     {
@@ -121,27 +119,22 @@ public:
 
         vertShader = loadShader(GL_VERTEX_SHADER, vertFile);
         fragShader = loadShader(GL_FRAGMENT_SHADER, fragFile);
-
         if (!geomFile.empty())
             geomShader = loadShader(GL_GEOMETRY_SHADER, geomFile);
 
         if (vertShader == 0 || fragShader == 0)
         {
-            throw std::runtime_error("Error: Shader: Failed to load shaders. Shader program not created.");
-            
             if (vertShader != 0)
                 glDeleteShader(vertShader);
             if (fragShader != 0)
                 glDeleteShader(fragShader);
             if (geomShader != 0)
                 glDeleteShader(geomShader);
-            
-            return;
+            throw std::runtime_error("Error: Shader: Failed to load shaders. Shader program not created.");
         }
 
         linkProgram(vertShader, fragShader, geomShader);
 
-        // Cleanup shaders
         if (id != 0)
         {
             glDetachShader(id, vertShader);
@@ -155,15 +148,17 @@ public:
         glDeleteShader(geomShader);
     }
 
-    // Destructor
+    // Destructor.
     ~Shader()
     {
         if (id != 0)
             glDeleteProgram(id);
     }
 
+    // Delete copy constructor and assignment operator.
     Shader(const Shader &) = delete;
     Shader &operator=(const Shader &) = delete;
+    // Move constructor and assignment operator.
     Shader(Shader &&other) noexcept
         : id(other.id), uniformLocationCache(std::move(other.uniformLocationCache))
     {
@@ -174,9 +169,7 @@ public:
         if (this != &other)
         {
             if (id != 0)
-            {
                 glDeleteProgram(id);
-            }
             id = other.id;
             uniformLocationCache = std::move(other.uniformLocationCache);
             other.id = 0;
@@ -184,16 +177,17 @@ public:
         return *this;
     }
 
+    // Returns the shader program ID.
     inline GLuint getId() const { return id; }
-
+    // Use this shader program.
     void use() const
     {
         if (id != 0)
             glUseProgram(id);
     }
+    // Unuse this shader program.
     inline void unuse() const { glUseProgram(0); }
-
-    // Setters
+    // Setters for uniform variables.
     void setBool(const std::string &name, bool value) const
     {
         if (id != 0)
