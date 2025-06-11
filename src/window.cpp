@@ -14,6 +14,8 @@ float pitch = 0.0f;
 double lastX = 0.0;
 double lastY = 0.0;
 bool firstMouse = true;
+bool wireframeEnabled = false;
+static bool key0_pressed_last_frame = false;
 
 void glfw_error_callback(int error, const char *description)
 {
@@ -62,7 +64,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 
 void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos)
 {
-    const float camSpeed = 2.7f * deltaTime;
+    const float camSpeed = 1.7f * 16.0f * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -82,6 +84,21 @@ void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos)
         camPos += worldUp * camSpeed;
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         camPos -= worldUp * camSpeed;
+    
+    
+    bool key0_is_pressed = glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS;
+    
+    if (key0_is_pressed && !key0_pressed_last_frame)
+    {
+        wireframeEnabled = !wireframeEnabled;
+        if (wireframeEnabled)
+            glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        else
+            glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    }
+
+    // Update the state for the next frame
+    key0_pressed_last_frame = key0_is_pressed;
 }
 
 GLFWwindow* initialize(const int width, const int height, const char *title, bool &initSuccess)

@@ -14,6 +14,7 @@ namespace Window
     extern double lastX;
     extern double lastY;
     extern bool firstMouse;
+    extern bool wireframeEnabled;
 
     void glfw_error_callback(int error, const char *description);
     void framebuffer_resize_callback(GLFWwindow *window, int fbWidth, int fbHeight);

@@ -104,6 +104,8 @@ int main()
         coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
         blockMaterial.sendToShader(coreShader);
 
+        coreShader.setBool("u_isWireframe", Window::wireframeEnabled);
+
         // Render the world
         world.render(coreShader);
 
