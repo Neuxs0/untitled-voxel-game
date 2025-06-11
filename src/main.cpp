@@ -5,6 +5,8 @@ int main()
 {
     float deltaTime = 0.0f;
     float lastFrame = 0.0f;
+    int frameCount = 0;
+    double lastFrameTime = glfwGetTime();
 
     // Window Settings
     const int winWidth = 800;
@@ -46,6 +48,7 @@ int main()
     Texture dirtTex("dirt.png", 0);
 
     // Initialize Materials
+    //                      Ambient          Diffuse           Specular          Diffuse Texture     Specular Texture
     Material dirtMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.1f), dirtTex.getTexUnit(), dirtTex.getTexUnit());
 
 
@@ -87,6 +90,17 @@ int main()
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
+
+        frameCount++;
+        if (currentFrame - lastFrameTime >= 1.0)
+        {
+            double actual_interval = currentFrame - lastFrameTime;
+            int fps = frameCount / actual_interval;
+            std::cout << "FPS: " << fps << std::endl;
+
+            frameCount = 0;
+            lastFrameTime = currentFrame;
+        }
 
         Window::updateInput(window, deltaTime, camPos);
 

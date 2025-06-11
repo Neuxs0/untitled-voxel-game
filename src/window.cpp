@@ -62,7 +62,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos)
 
 void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos)
 {
-    const float camSpeed = 1.7f * deltaTime;
+    const float camSpeed = 2.7f * deltaTime;
 
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, GLFW_TRUE);
