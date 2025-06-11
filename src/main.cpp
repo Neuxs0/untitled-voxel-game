@@ -1,5 +1,8 @@
 #include "window.hpp"
-#include "Mesh.hpp"
+#include "Shader.hpp"
+#include "Material.hpp"
+#include "World.hpp"
+#include <glm/gtc/matrix_transform.hpp>
 
 int main()
 {
@@ -11,7 +14,7 @@ int main()
     // Window Settings
     const int winWidth = 800;
     const int winHeight = 600;
-    const char* winTitle = "Untitled Voxel Game - Camera Demo";
+    const char* winTitle = "Untitled Voxel Game";
 
     bool windowInitSuccess = false;
     GLFWwindow* window = Window::initialize(winWidth, winHeight, winTitle, windowInitSuccess);
@@ -40,43 +43,25 @@ int main()
     // Initialize Shaders
     Shader coreShader("core.vert.glsl", "core.frag.glsl");
 
-    // Initialize Mesh
-    Cube dirtBlock;
-    Mesh mesh(&dirtBlock);
+    // Initialize the World. This creates and meshes our first chunk.
+    World world;
 
-    // Initialize Materials
-    //                    Ambient          Diffuse          Specular
-    Material dirtMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.1f));
-
-
-    // Model Transformation
-    glm::vec3 position(0.0f, 0.0f, 0.0f);
-    glm::vec3 rotation(0.0f);
-    glm::vec3 scale(1.0f);
+    // A single material to be used for all blocks for now
+    Material blockMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.05f));
 
     // Camera
-    glm::vec3 camPos(0.0f, 1.0f, 2.0f);
+    glm::vec3 camPos(8.0f, 18.0f, 24.0f);
     glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
-
     glm::mat4 ViewMatrix(1.0f);
-    ViewMatrix = glm::lookAt(camPos, camPos + Window::cameraFront, worldUp);
-
+    
+    // Projection
     float fov = 85.0f;
     float nearPlane = 0.01f;
     float farPlane = 1000.0f;
     glm::mat4 ProjectionMatrix(1.0f);
-    ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
 
     // Lighting
-    glm::vec3 lightPos0(1.0f, 2.0f, 1.0f);
-
-    // Initialize uniforms
-    coreShader.use();
-    coreShader.setVec3("lightPos0", lightPos0);
-    coreShader.setVec3("cameraPos", camPos);
-    coreShader.setMat4("ViewMatrix", ViewMatrix);
-    coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
-    coreShader.unuse();
+    glm::vec3 lightPos0(32.0f, 32.0f, 32.0f);
 
     // App Loop
     while (!glfwWindowShouldClose(window))
@@ -103,40 +88,29 @@ int main()
 
         glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
 
-        // Translations
-        glm::mat4 ModelMatrix(1.0f);
-        ModelMatrix = glm::translate(ModelMatrix, position);
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.x), glm::vec3(1.0f, 0.0f, 0.0f));
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.y), glm::vec3(0.0f, 1.0f, 0.0f));
-        ModelMatrix = glm::rotate(ModelMatrix, glm::radians(rotation.z), glm::vec3(0.0f, 0.0f, 1.0f));
-        ModelMatrix = glm::scale(ModelMatrix, glm::vec3(scale));
-
+        // Update matrices
         ProjectionMatrix = glm::perspective(glm::radians(fov), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
-
         ViewMatrix = glm::lookAt(camPos, camPos + Window::cameraFront, worldUp);
 
-        // Clear screen
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+        // Clear screen with a sky-blue color
+        glClearColor(0.1f, 0.4f, 0.7f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        // Prepare shader and set uniforms that are constant for the entire frame
         coreShader.use();
-
-        // Update uniforms
         coreShader.setVec3("cameraPos", camPos);
         coreShader.setVec3("lightPos0", lightPos0);
         coreShader.setMat4("ViewMatrix", ViewMatrix);
         coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
-        dirtMaterial.sendToShader(coreShader);
+        blockMaterial.sendToShader(coreShader);
 
-        mesh.render(&coreShader);
+        // Render the world, which will render all its chunks
+        world.render(coreShader);
 
         // End draw
         glfwSwapBuffers(window);
-
         glBindVertexArray(0);
         glUseProgram(0);
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     // Cleanup
