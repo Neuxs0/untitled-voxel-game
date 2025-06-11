@@ -3,8 +3,8 @@
 World::World()
 {
     // Create one chunk at the world origin
-    auto chunk = std::make_unique<Chunk>(glm::vec3(0.0f, 0.0f, 0.0f));
-    
+    auto chunk = std::make_unique<Chunk>(glm::vec3(0.0f, -0.8f, 0.0f));
+
     chunk->generateMesh();
 
     m_chunks.push_back(std::move(chunk));

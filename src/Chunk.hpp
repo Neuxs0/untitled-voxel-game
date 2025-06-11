@@ -7,13 +7,9 @@
 class Mesh;
 class Shader;
 
+#include "Constants.hpp"
 #include "Vertex.hpp"
 #include "Block.hpp"
-
-// Chunk Constants
-const int CHUNK_WIDTH = 16;
-const int CHUNK_HEIGHT = 16;
-const int CHUNK_DEPTH = 16;
 
 class Chunk {
 private:
@@ -27,7 +23,7 @@ private:
     glm::vec3 m_position;
 
     // 3D array storing all block types in this chunk
-    BlockType m_blocks[CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_DEPTH];
+    BlockType m_blocks[Constants::CHUNK_DIM][Constants::CHUNK_DIM][Constants::CHUNK_DIM];
 
     Mesh *m_opaqueMesh;
     Mesh *m_transparentMesh;

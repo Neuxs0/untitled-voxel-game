@@ -50,7 +50,7 @@ int main()
     Material blockMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.05f));
 
     // Camera
-    glm::vec3 camPos(8.0f, 18.0f, 24.0f);
+    glm::vec3 camPos(0.0f, 1.8f, 0.0f);
     glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
     glm::mat4 ViewMatrix(1.0f);
     

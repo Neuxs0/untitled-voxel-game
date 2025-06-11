@@ -1,3 +1,4 @@
+#include "Constants.hpp"
 #include "Chunk.hpp"
 #include "Mesh.hpp"
 #include "Shader.hpp"
@@ -6,20 +7,20 @@
 // Populates the chunk with a simple terrain
 Chunk::Chunk(glm::vec3 position) : m_position(position), m_opaqueMesh(nullptr), m_transparentMesh(nullptr)
 {
-    for (int x = 0; x < CHUNK_WIDTH; ++x)
+    for (int x = 0; x < Constants::CHUNK_DIM; ++x)
     {
-        for (int z = 0; z < CHUNK_DEPTH; ++z)
+        for (int z = 0; z < Constants::CHUNK_DIM; ++z)
         {
-            for (int y = 0; y < CHUNK_HEIGHT; ++y)
+            for (int y = 0; y < Constants::CHUNK_DIM; ++y)
             {
                 // Generate a simple layered world
-                if (y < CHUNK_HEIGHT / 2)
+                if (y < Constants::CHUNK_DIM / 2)
                     m_blocks[x][y][z] = BlockType::STONE;
-                else if (y < CHUNK_HEIGHT - 2)
+                else if (y < Constants::CHUNK_DIM - 2)
                     m_blocks[x][y][z] = BlockType::DIRT;
-                else if (y < CHUNK_HEIGHT - 1)
+                else if (y < Constants::CHUNK_DIM - 1)
                     m_blocks[x][y][z] = BlockType::GRASS;
-                else if (y == CHUNK_HEIGHT - 1)
+                else if (y == Constants::CHUNK_DIM - 1)
                     // Create a layer of water on top
                     m_blocks[x][y][z] = BlockType::WATER;
                 else
@@ -38,7 +39,7 @@ Chunk::~Chunk()
 BlockType Chunk::getBlock(int x, int y, int z) const
 {
     // Check coordinate bounds. If outside the chunk, treat it as AIR.
-    if (x < 0 || x >= CHUNK_WIDTH || y < 0 || y >= CHUNK_HEIGHT || z < 0 || z >= CHUNK_DEPTH)
+    if (x < 0 || x >= Constants::CHUNK_DIM || y < 0 || y >= Constants::CHUNK_DIM || z < 0 || z >= Constants::CHUNK_DIM)
         return BlockType::AIR;
     
     return m_blocks[x][y][z];
@@ -50,11 +51,11 @@ void Chunk::generateMesh()
     std::vector<Vertex> transparentVertices;
 
     // Iterate through every block in the chunk
-    for (int x = 0; x < CHUNK_WIDTH; ++x)
+    for (int x = 0; x < Constants::CHUNK_DIM; ++x)
     {
-        for (int y = 0; y < CHUNK_HEIGHT; ++y)
+        for (int y = 0; y < Constants::CHUNK_DIM; ++y)
         {
-            for (int z = 0; z < CHUNK_DEPTH; ++z)
+            for (int z = 0; z < Constants::CHUNK_DIM; ++z)
             {
                 BlockType currentType = getBlock(x, y, z);
                 if (currentType == BlockType::AIR)
@@ -122,52 +123,55 @@ void Chunk::renderTransparent(Shader &shader)
 void Chunk::addFace(std::vector<Vertex> &vertices, const glm::vec3 &blockPos, BlockType type, const glm::vec3 &normal)
 {
     glm::vec4 color = Block::get(type).color;
-    float s = 0.5f; // Block half-size
+    float s = Constants::BLOCK_WIDTH / 2.0f;
+
+    const glm::vec3 centerOffset(Constants::CHUNK_DIM / 2.0f - 0.5f);
+    const glm::vec3 localOffset = (blockPos - centerOffset) * Constants::BLOCK_WIDTH;
 
     // Define the 4 corners of a face based on its normal vector
     glm::vec3 p1, p2, p3, p4;
 
     if (normal == glm::vec3(0, 0, 1))
     { // Front
-        p1 = blockPos + glm::vec3(-s, -s, s);
-        p2 = blockPos + glm::vec3(s, -s, s);
-        p3 = blockPos + glm::vec3(s, s, s);
-        p4 = blockPos + glm::vec3(-s, s, s);
+        p1 = localOffset + glm::vec3(-s, -s, s);
+        p2 = localOffset + glm::vec3(s, -s, s);
+        p3 = localOffset + glm::vec3(s, s, s);
+        p4 = localOffset + glm::vec3(-s, s, s);
     }
     else if (normal == glm::vec3(0, 0, -1))
     { // Back
-        p1 = blockPos + glm::vec3(s, -s, -s);
-        p2 = blockPos + glm::vec3(-s, -s, -s);
-        p3 = blockPos + glm::vec3(-s, s, -s);
-        p4 = blockPos + glm::vec3(s, s, -s);
+        p1 = localOffset + glm::vec3(s, -s, -s);
+        p2 = localOffset + glm::vec3(-s, -s, -s);
+        p3 = localOffset + glm::vec3(-s, s, -s);
+        p4 = localOffset + glm::vec3(s, s, -s);
     }
     else if (normal == glm::vec3(1, 0, 0))
     { // Right
-        p1 = blockPos + glm::vec3(s, -s, s);
-        p2 = blockPos + glm::vec3(s, -s, -s);
-        p3 = blockPos + glm::vec3(s, s, -s);
-        p4 = blockPos + glm::vec3(s, s, s);
+        p1 = localOffset + glm::vec3(s, -s, s);
+        p2 = localOffset + glm::vec3(s, -s, -s);
+        p3 = localOffset + glm::vec3(s, s, -s);
+        p4 = localOffset + glm::vec3(s, s, s);
     }
     else if (normal == glm::vec3(-1, 0, 0))
     { // Left
-        p1 = blockPos + glm::vec3(-s, -s, -s);
-        p2 = blockPos + glm::vec3(-s, -s, s);
-        p3 = blockPos + glm::vec3(-s, s, s);
-        p4 = blockPos + glm::vec3(-s, s, -s);
+        p1 = localOffset + glm::vec3(-s, -s, -s);
+        p2 = localOffset + glm::vec3(-s, -s, s);
+        p3 = localOffset + glm::vec3(-s, s, s);
+        p4 = localOffset + glm::vec3(-s, s, -s);
     }
     else if (normal == glm::vec3(0, 1, 0))
     { // Top
-        p1 = blockPos + glm::vec3(-s, s, s);
-        p2 = blockPos + glm::vec3(s, s, s);
-        p3 = blockPos + glm::vec3(s, s, -s);
-        p4 = blockPos + glm::vec3(-s, s, -s);
+        p1 = localOffset + glm::vec3(-s, s, s);
+        p2 = localOffset + glm::vec3(s, s, s);
+        p3 = localOffset + glm::vec3(s, s, -s);
+        p4 = localOffset + glm::vec3(-s, s, -s);
     }
     else
     { // Bottom
-        p1 = blockPos + glm::vec3(-s, -s, -s);
-        p2 = blockPos + glm::vec3(s, -s, -s);
-        p3 = blockPos + glm::vec3(s, -s, s);
-        p4 = blockPos + glm::vec3(-s, -s, s);
+        p1 = localOffset + glm::vec3(-s, -s, -s);
+        p2 = localOffset + glm::vec3(s, -s, -s);
+        p3 = localOffset + glm::vec3(s, -s, s);
+        p4 = localOffset + glm::vec3(-s, -s, s);
     }
 
     // Add two triangles to form the quad face

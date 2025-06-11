@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O3
+CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -MMD -MP
 LDFLAGS =
 LDLIBS = -lglfw -lGLEW -lGL -lm
 INCLUDE_DIRS = -I$(SRC_DIR)
@@ -15,6 +15,7 @@ ASSETS_DEST_DIR = $(DIST_DIR)/assets
 
 SOURCES = $(shell find $(SRC_DIR) -name '*.cpp')
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
+DEPS = $(OBJECTS:.o=.d)
 
 ifeq ($(SILENT),true)
     Q := @
@@ -72,3 +73,5 @@ test_sequence: clean all run
 # Executes the test_sequence silently
 test:
 	@$(MAKE) --no-print-directory SILENT=true test_sequence
+
+-include $(DEPS)
