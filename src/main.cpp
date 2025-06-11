@@ -44,12 +44,9 @@ int main()
     Cube dirtBlock;
     Mesh mesh(&dirtBlock);
 
-    // Initialize Textures
-    Texture dirtTex("dirt.png", 0);
-
     // Initialize Materials
-    //                      Ambient          Diffuse           Specular          Diffuse Texture     Specular Texture
-    Material dirtMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.1f), dirtTex.getTexUnit(), dirtTex.getTexUnit());
+    //                    Ambient          Diffuse          Specular
+    Material dirtMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.1f));
 
 
     // Model Transformation
@@ -130,9 +127,6 @@ int main()
         coreShader.setMat4("ViewMatrix", ViewMatrix);
         coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
         dirtMaterial.sendToShader(coreShader);
-
-        // Activate textures
-        dirtTex.bind();
 
         mesh.render(&coreShader);
 

@@ -1,7 +1,7 @@
 CXX = g++
 CXXFLAGS = -std=c++17 -Wall -Wextra -O3
 LDFLAGS =
-LDLIBS = -lglfw -lGLEW -lGL -lm -lsoil2
+LDLIBS = -lglfw -lGLEW -lGL -lm
 INCLUDE_DIRS = -I$(SRC_DIR)
 
 SRC_DIR = src
