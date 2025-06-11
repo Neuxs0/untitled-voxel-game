@@ -1,4 +1,4 @@
-#include "window.hpp"
+#include "Window.hpp"
 #include "Shader.hpp"
 #include "Material.hpp"
 #include "World.hpp"
