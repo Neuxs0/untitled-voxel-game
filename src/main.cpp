@@ -96,7 +96,7 @@ int main()
         glClearColor(0.1f, 0.4f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Prepare shader and set uniforms that are constant for the entire frame
+        // Prepare shader and set uniforms
         coreShader.use();
         coreShader.setVec3("cameraPos", camPos);
         coreShader.setVec3("lightPos0", lightPos0);
@@ -104,7 +104,7 @@ int main()
         coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
         blockMaterial.sendToShader(coreShader);
 
-        // Render the world, which will render all its chunks
+        // Render the world
         world.render(coreShader);
 
         // End draw

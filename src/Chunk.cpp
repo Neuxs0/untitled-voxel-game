@@ -3,8 +3,8 @@
 #include "Shader.hpp"
 #include <vector>
 
-// Constructor that populates the chunk with a simple terrain
-Chunk::Chunk(glm::vec3 position) : m_position(position), m_mesh(nullptr)
+// Populates the chunk with a simple terrain
+Chunk::Chunk(glm::vec3 position) : m_position(position), m_opaqueMesh(nullptr), m_transparentMesh(nullptr)
 {
     for (int x = 0; x < CHUNK_WIDTH; ++x)
     {
@@ -29,7 +29,11 @@ Chunk::Chunk(glm::vec3 position) : m_position(position), m_mesh(nullptr)
     }
 }
 
-Chunk::~Chunk() { delete m_mesh; }
+Chunk::~Chunk()
+{
+    delete m_opaqueMesh;
+    delete m_transparentMesh;
+}
 
 BlockType Chunk::getBlock(int x, int y, int z) const
 {
@@ -42,70 +46,75 @@ BlockType Chunk::getBlock(int x, int y, int z) const
 
 void Chunk::generateMesh()
 {
-    std::vector<Vertex> vertices;
+    std::vector<Vertex> opaqueVertices;
+    std::vector<Vertex> transparentVertices;
 
-    // Iterate through every block in the chunk to build the mesh
+    // Iterate through every block in the chunk
     for (int x = 0; x < CHUNK_WIDTH; ++x)
     {
         for (int y = 0; y < CHUNK_HEIGHT; ++y)
         {
             for (int z = 0; z < CHUNK_DEPTH; ++z)
             {
-                BlockType currentBlockType = getBlock(x, y, z);
-
-                // Skip air blocks, as they are not visible
-                if (currentBlockType == BlockType::AIR)
+                BlockType currentType = getBlock(x, y, z);
+                if (currentType == BlockType::AIR)
                     continue;
 
+                BlockData currentData = Block::get(currentType);
                 glm::vec3 blockPos(x, y, z);
 
-                // A face is visible if it's adjacent to a non-opaque block (e.g., air or water)
-                // Check neighbor in +Z direction (Front face)
-                if (!Block::get(getBlock(x, y, z + 1)).isOpaque)
-                    addFace(vertices, blockPos, currentBlockType, {0, 0, 1});
-                // Check neighbor in -Z direction (Back face)
-                if (!Block::get(getBlock(x, y, z - 1)).isOpaque)
-                    addFace(vertices, blockPos, currentBlockType, {0, 0, -1});
-                // Check neighbor in +X direction (Right face)
-                if (!Block::get(getBlock(x + 1, y, z)).isOpaque)
-                    addFace(vertices, blockPos, currentBlockType, {1, 0, 0});
-                // Check neighbor in -X direction (Left face)
-                if (!Block::get(getBlock(x - 1, y, z)).isOpaque)
-                    addFace(vertices, blockPos, currentBlockType, {-1, 0, 0});
-                // Check neighbor in +Y direction (Top face)
-                if (!Block::get(getBlock(x, y + 1, z)).isOpaque)
-                    addFace(vertices, blockPos, currentBlockType, {0, 1, 0});
-                // Check neighbor in -Y direction (Bottom face)
-                if (!Block::get(getBlock(x, y - 1, z)).isOpaque)
-                    addFace(vertices, blockPos, currentBlockType, {0, -1, 0});
+                // Decide which vertex list to add to for this block
+                std::vector<Vertex> &targetVertices = currentData.isOpaque ? opaqueVertices : transparentVertices;
+
+                // An array of neighbor offsets
+                const glm::ivec3 neighbors[] = {
+                    {0, 0, 1}, {0, 0, -1}, {1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}};
+
+                for (const auto &offset : neighbors)
+                {
+                    BlockType neighborType = getBlock(x + offset.x, y + offset.y, z + offset.z);
+                    BlockData neighborData = Block::get(neighborType);
+
+                    if (neighborType == BlockType::AIR || (currentData.isOpaque && !neighborData.isOpaque))
+                        addFace(targetVertices, blockPos, currentType, glm::vec3(offset));
+                }
             }
         }
     }
 
-    // Delete the old mesh data before creating a new one
-    delete m_mesh;
+    // Delete old mesh data
+    delete m_opaqueMesh;
+    delete m_transparentMesh;
 
-    // Create a new mesh if there are any vertices to draw
-    if (!vertices.empty())
-    {
-        // NOTE: This requires a new constructor in Mesh.hpp
-        m_mesh = new Mesh(vertices);
-    }
+    // Create new meshes if their vertex lists are not empty
+    if (!opaqueVertices.empty())
+        m_opaqueMesh = new Mesh(opaqueVertices);
     else
+        m_opaqueMesh = nullptr;
+
+    if (!transparentVertices.empty())
+        m_transparentMesh = new Mesh(transparentVertices);
+    else
+        m_transparentMesh = nullptr;
+}
+
+void Chunk::renderOpaque(Shader &shader)
+{
+    if (m_opaqueMesh)
     {
-        m_mesh = nullptr;
+        glm::mat4 ModelMatrix = glm::translate(glm::mat4(1.0f), m_position);
+        shader.setMat4("ModelMatrix", ModelMatrix);
+        m_opaqueMesh->render();
     }
 }
 
-void Chunk::render(Shader &shader)
+void Chunk::renderTransparent(Shader &shader)
 {
-    if (m_mesh)
+    if (m_transparentMesh)
     {
-        // Set the ModelMatrix uniform for this specific chunk's position
         glm::mat4 ModelMatrix = glm::translate(glm::mat4(1.0f), m_position);
         shader.setMat4("ModelMatrix", ModelMatrix);
-
-        m_mesh->render();
+        m_transparentMesh->render();
     }
 }
 

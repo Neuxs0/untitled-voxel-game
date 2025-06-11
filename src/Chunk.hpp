@@ -29,7 +29,8 @@ private:
     // 3D array storing all block types in this chunk
     BlockType m_blocks[CHUNK_WIDTH][CHUNK_HEIGHT][CHUNK_DEPTH];
 
-    Mesh *m_mesh;
+    Mesh *m_opaqueMesh;
+    Mesh *m_transparentMesh;
 
 public:
     Chunk(glm::vec3 position);
@@ -37,5 +38,6 @@ public:
 
     void generateMesh();
 
-    void render(Shader& shader);
+    void renderOpaque(Shader &shader);
+    void renderTransparent(Shader &shader);
 };
