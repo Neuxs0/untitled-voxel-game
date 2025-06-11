@@ -4,16 +4,12 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 
+// Forward declaration
+class Camera;
+
 // Namespace for all window-related functions and variables.
 namespace Window
 {
-    // Camera vectors
-    extern glm::vec3 cameraFront;
-    extern glm::vec3 cameraUp;
-    extern glm::vec3 cameraRight;
-    // Camera rotation
-    extern float yaw;
-    extern float pitch;
     // Mouse position
     extern double lastX;
     extern double lastY;
@@ -30,5 +26,5 @@ namespace Window
     // Initialize GLFW, GLEW, and create a window.
     GLFWwindow *initialize(const int width, const int height, const char *title, bool &success);
     // Process input from the user.
-    void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos);
+    void updateInput(GLFWwindow *window, Camera &camera, float deltaTime);
 }

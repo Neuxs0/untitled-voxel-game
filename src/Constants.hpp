@@ -16,5 +16,5 @@ namespace Constants
     constexpr float CHUNK_WIDTH = CHUNK_DIM * 0.1f; // 1.6f
 
     // The player's view distance, in chunks.
-    constexpr int RENDER_DISTANCE = 16;
+    constexpr int RENDER_DISTANCE = 32;
 }

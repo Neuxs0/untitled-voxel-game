@@ -23,12 +23,10 @@ Chunk::Chunk(glm::ivec3 chunkCoord)
                 {
                     if (y < 10)
                         m_blocks[x][y][z] = BlockType::STONE;
-                    else if (y < 14)
+                    else if (y < 15)
                         m_blocks[x][y][z] = BlockType::DIRT;
-                    else if (y == 14)
+                    else if (y == 15)
                         m_blocks[x][y][z] = BlockType::GRASS;
-                    else
-                        m_blocks[x][y][z] = BlockType::WATER;
                 }
             }
         }

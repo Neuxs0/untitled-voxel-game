@@ -1,19 +1,10 @@
 #include <iostream>
 #include <GL/glew.h>
 #include "Window.hpp"
+#include "Camera.hpp"
 
 namespace Window
 {
-
-    // Camera vectors
-    glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
-    glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 cameraRight = glm::normalize(glm::cross(cameraFront, cameraUp));
-
-    // Camera rotation
-    float yaw = -90.0f;
-    float pitch = 0.0f;
-
     // Mouse position
     double lastX = 0.0;
     double lastY = 0.0;
@@ -21,7 +12,6 @@ namespace Window
 
     // Wireframe mode toggle
     bool wireframeEnabled = false;
-    static bool key0_pressed_last_frame = false;
 
     // GLFW error callback function.
     void glfw_error_callback(int error, const char *description)
@@ -39,7 +29,10 @@ namespace Window
     // GLFW mouse movement callback function.
     void mouse_callback(GLFWwindow *window, double xpos, double ypos)
     {
-        (void)window; // Unused parameter
+        Camera *camera = static_cast<Camera *>(glfwGetWindowUserPointer(window));
+        if (!camera)
+            return;
+
         if (firstMouse)
         {
             lastX = xpos;
@@ -52,51 +45,31 @@ namespace Window
         lastX = xpos;
         lastY = ypos;
 
-        float sensitivity = 0.1f;
-        xoffset *= sensitivity;
-        yoffset *= sensitivity;
-
-        yaw += xoffset;
-        pitch += yoffset;
-
-        if (pitch > 89.0f)
-            pitch = 89.0f;
-        if (pitch < -89.0f)
-            pitch = -89.0f;
-
-        glm::vec3 front;
-        front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-        front.y = sin(glm::radians(pitch));
-        front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-        cameraFront = glm::normalize(front);
+        camera->processMouseMovement(xoffset, yoffset);
     }
 
     // Process input from the user.
-    void updateInput(GLFWwindow *window, float deltaTime, glm::vec3 &camPos)
+    void updateInput(GLFWwindow *window, Camera &camera, float deltaTime)
     {
-        const float camSpeed = 3.7f * deltaTime;
-
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, GLFW_TRUE);
 
-        glm::vec3 worldUp = glm::vec3(0.0f, 1.0f, 0.0f);
-        glm::vec3 localCameraRight = glm::normalize(glm::cross(cameraFront, worldUp));
-
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-            camPos += cameraFront * camSpeed;
+            camera.processKeyboard(CameraMovement::FORWARD, deltaTime);
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-            camPos -= cameraFront * camSpeed;
+            camera.processKeyboard(CameraMovement::BACKWARD, deltaTime);
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-            camPos -= localCameraRight * camSpeed;
+            camera.processKeyboard(CameraMovement::LEFT, deltaTime);
         if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-            camPos += localCameraRight * camSpeed;
+            camera.processKeyboard(CameraMovement::RIGHT, deltaTime);
         if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-            camPos += worldUp * camSpeed;
+            camera.processKeyboard(CameraMovement::UP, deltaTime);
         if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-            camPos -= worldUp * camSpeed;
+            camera.processKeyboard(CameraMovement::DOWN, deltaTime);
 
         // Toggle wireframe mode
         bool key0_is_pressed = glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS;
+        bool key0_pressed_last_frame = glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS;
         if (key0_is_pressed && !key0_pressed_last_frame)
         {
             wireframeEnabled = !wireframeEnabled;
