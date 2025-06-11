@@ -116,6 +116,8 @@ GLFWwindow* initialize(const int width, const int height, const char *title, boo
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_RESIZABLE, GL_TRUE);
+    glfwWindowHintString(GLFW_X11_CLASS_NAME, "untitled_voxel_game");
+    glfwWindowHintString(GLFW_WAYLAND_APP_ID, "untitled_voxel_game");
 
     GLFWwindow *window = glfwCreateWindow(width, height, title, NULL, NULL);
     if (window == NULL)
