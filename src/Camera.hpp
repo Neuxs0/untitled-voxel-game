@@ -24,7 +24,7 @@ const float SPEED = 5.0f; // In units (blocks) per second
 const float SENSITIVITY = 0.1f;
 const float FOV = 85.0f;
 const float NEAR_PLANE = 0.01f;
-const float FAR_PLANE = 1000.0f;
+const float FAR_PLANE = 100000.0f;
 
 /**
  * @class Camera

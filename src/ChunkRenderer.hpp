@@ -3,22 +3,17 @@
 #include <GL/glew.h>
 #include <vector>
 #include <list>
+#include <optional>
 
 #include "MeshAllocation.hpp"
 
-// Forward-declaration of Vertex struct.
-// The header file only needs to know that the type 'Vertex' exists.
-// The full definition is only required in the .cpp file.
+// Forward-declaration
 struct Vertex;
 
 class ChunkRenderer
 {
 private:
-    GLuint m_vao;
-    GLuint m_vbo;
-    GLuint m_ebo;
-
-    // Represents a contiguous block of free space in the VBO and EBO.
+    // Represents a contiguous block of free space in a VBO and EBO.
     struct BufferBlock
     {
         uint32_t vertexOffset;
@@ -27,18 +22,33 @@ private:
         uint32_t indexCapacity;
     };
 
-    const uint32_t m_vertexCapacity;
-    const uint32_t m_indexCapacity;
+    // A set of GPU buffers (VAO, VBO, EBO) and its associated memory manager.
+    struct BufferPool
+    {
+        GLuint vao = 0;
+        GLuint vbo = 0;
+        GLuint ebo = 0;
+        uint32_t vertexCapacity;
+        uint32_t indexCapacity;
+        // A list of free blocks, kept sorted by offset to allow for merging.
+        std::list<BufferBlock> freeList{};
+    };
 
-    // A list of free blocks, kept sorted by offset to allow for merging.
-    std::list<BufferBlock> m_freeList;
+    std::vector<BufferPool> m_pools;
+    const uint32_t m_poolVertexCapacity;
+    const uint32_t m_poolIndexCapacity;
+    
+    // Tracks the last bound VAO to avoid redundant binds.
+    mutable GLuint m_lastBoundVao = 0;
 
     // Private helper methods
-    void initializeBuffers();
-    void mergeFreeBlocks(std::list<BufferBlock>::iterator it);
+    void createNewPool();
+    void initializePool(BufferPool& pool);
+    std::optional<MeshAllocation> tryAllocateInPool(uint32_t poolIndex, const std::vector<Vertex>& vertices, const std::vector<unsigned short>& indices);
+    void mergeFreeBlocks(BufferPool& pool, std::list<BufferBlock>::iterator it);
 
 public:
-    ChunkRenderer(uint32_t vertexCapacity, uint32_t indexCapacity);
+    ChunkRenderer(uint32_t poolVertexCapacity, uint32_t poolIndexCapacity);
     ~ChunkRenderer();
 
     // Prevent copying and moving to avoid issues with OpenGL resource ownership.
@@ -48,32 +58,22 @@ public:
     ChunkRenderer &operator=(ChunkRenderer &&) = delete;
 
     /**
-     * @brief Allocates space in the GPU buffers for a mesh.
+     * @brief Allocates space in the GPU buffers for a mesh. May create a new buffer pool if needed.
      * @param vertices The vertex data for the mesh.
      * @param indices The index data for the mesh.
      * @return A MeshAllocation struct representing the location and size of the allocated mesh.
      */
-    MeshAllocation allocateMesh(const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices);
+    MeshAllocation allocateMesh(const std::vector<Vertex> &vertices, const std::vector<unsigned short> &indices);
     
     /**
      * @brief Frees a previously allocated mesh, making its space available for reuse.
      * @param allocation The MeshAllocation struct to free.
      */
     void freeMesh(const MeshAllocation &allocation);
-
-    /**
-     * @brief Binds the renderer's Vertex Array Object for drawing.
-     */
-    void bind() const;
-
-    /**
-     * @brief Unbinds the renderer's Vertex Array Object.
-     */
-    void unbind() const;
     
     /**
-     * @brief Issues a draw call for a specific mesh allocation.
+     * @brief Issues a draw call for a specific mesh allocation, binding the correct VAO if necessary.
      * @param allocation The mesh to draw.
      */
-    static void draw(const MeshAllocation &allocation);
+    void draw(const MeshAllocation &allocation) const;
 };

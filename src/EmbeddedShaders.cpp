@@ -7,10 +7,6 @@ extern const char _binary_src_assets_shaders_core_frag_glsl_start[];
 extern const char _binary_src_assets_shaders_core_frag_glsl_end[];
 extern const char _binary_src_assets_shaders_terrain_gen_comp_glsl_start[];
 extern const char _binary_src_assets_shaders_terrain_gen_comp_glsl_end[];
-extern const char _binary_src_assets_shaders_border_population_comp_glsl_start[];
-extern const char _binary_src_assets_shaders_border_population_comp_glsl_end[];
-extern const char _binary_src_assets_shaders_meshing_comp_glsl_start[];
-extern const char _binary_src_assets_shaders_meshing_comp_glsl_end[];
 
 // Definitions
 const std::string_view EmbeddedShaders::core_vert(

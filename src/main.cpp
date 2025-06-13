@@ -4,6 +4,7 @@
 #include "World.hpp"
 #include "Camera.hpp"
 #include "EmbeddedShaders.hpp"
+#include "Constants.hpp" // Required for Constants::TEXTURE_SIZE_PX
 #include <glm/gtc/matrix_transform.hpp>
 
 int main()
@@ -35,7 +36,6 @@ int main()
     std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
     // OpenGL settings
-    // glfwSwapInterval(0); is now in Window::initialize()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -47,7 +47,18 @@ int main()
     Shader coreShader(EmbeddedShaders::core_vert, EmbeddedShaders::core_frag);
 
     // World setup
-    World world;
+    World world; 
+
+    // Set uniforms now that the atlas is ready
+    coreShader.use(); 
+    glm::vec2 tileSize = world.getAtlasNormalizedTileSize();
+    if (tileSize.x > 0.0f && tileSize.y > 0.0f) { 
+         coreShader.setVec2("u_atlasTileSize", tileSize);
+    } else {
+        std::cerr << "Warning: Atlas tile size is zero in main. Textures might not render correctly." << std::endl;
+    }
+    coreShader.setFloat("u_texturePixelDimension", static_cast<float>(Constants::TEXTURE_SIZE_PX));
+
 
     // Material setup
     Material blockMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.05f), 32.0f);
@@ -58,7 +69,6 @@ int main()
     // Main game loop
     while (!window.shouldClose())
     {
-        // Update frame timing
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
@@ -72,19 +82,15 @@ int main()
             lastFrameTime = currentFrame;
         }
 
-        // Update game state
         window.updateInput(deltaTime);
         world.update(camera.getPosition());
 
-        // Update view matrix and frustum
         glm::mat4 ViewMatrix = camera.getViewMatrix();
         camera.updateFrustum(ViewMatrix);
 
-        // Clear the screen
         glClearColor(0.1f, 0.4f, 0.7f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        // Render the world
         coreShader.use();
         coreShader.setVec3("cameraPos", camera.getPosition());
         coreShader.setVec3("lightPos0", lightPos0);
@@ -94,10 +100,8 @@ int main()
         coreShader.setBool("u_isWireframe", window.isWireframeEnabled());
         world.render(coreShader, camera);
 
-        // Swap buffers and poll events
         window.swapBuffersAndPollEvents();
     }
 
-    // Window destructor will handle GLFW termination.
     return 0;
 }

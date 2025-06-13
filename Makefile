@@ -16,11 +16,18 @@ INCLUDE_DIRS = -I$(SRC_DIR)
 
 SOURCES = $(shell find $(SRC_DIR) -name '*.cpp')
 
-# Find all .glsl files, using -o to prevent duplicates for names like *.comp.glsl.
+# Find all .glsl files.
 SHADER_FILES = $(shell find $(ASSETS_SRC_DIR)/shaders -name '*.glsl' -o -name '*.comp.glsl')
+
+# Find all .png texture files under the main textures directory.
+TEXTURE_FILES = $(shell find $(ASSETS_SRC_DIR)/textures -name '*.png')
 
 # Generate object file names for shaders.
 SHADER_OBJECTS = $(patsubst $(ASSETS_SRC_DIR)/shaders/%,$(OBJ_DIR)/shaders/%.o,$(SHADER_FILES))
+
+# Generate object file names for textures.
+# e.g. src/assets/textures/blocks/dirt.png -> build/obj/assets/textures/blocks/dirt.png.o
+TEXTURE_OBJECTS = $(patsubst $(SRC_DIR)/%,$(OBJ_DIR)/%.o,$(TEXTURE_FILES))
 
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 DEPS = $(OBJECTS:.o=.d)
@@ -39,14 +46,14 @@ endif
 # Default target: build the executable.
 all: $(TARGET)
 
-# Create the necessary directories if they don't exist.
-$(OBJ_DIR) $(DIST_DIR) $(OBJ_DIR)/shaders:
+# Create the top-level directories if they don't exist.
+$(OBJ_DIR) $(DIST_DIR):
 	$(Q)mkdir -p $@
 
-# Link all object files (C++ and shader-generated) to create the executable.
-$(TARGET): $(OBJECTS) $(SHADER_OBJECTS) | $(DIST_DIR)
+# Link all object files (C++, shader-generated, and texture-generated) to create the executable.
+$(TARGET): $(OBJECTS) $(SHADER_OBJECTS) $(TEXTURE_OBJECTS) | $(DIST_DIR)
 	$(VECHO) "Linking $@"
-	$(Q)$(CXX) $(OBJECTS) $(SHADER_OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
+	$(Q)$(CXX) $(OBJECTS) $(SHADER_OBJECTS) $(TEXTURE_OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 # Compile source files into object files.
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
@@ -54,9 +61,17 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
-# Rule to convert a file into a linkable object file using the linker (ld).
-$(OBJ_DIR)/shaders/%.o: $(ASSETS_SRC_DIR)/shaders/% | $(OBJ_DIR)/shaders
+# Rule to convert a shader file into a linkable object file using the linker (ld).
+$(OBJ_DIR)/shaders/%.o: $(ASSETS_SRC_DIR)/shaders/%
 	$(VECHO) "Embedding $<"
+	$(Q)mkdir -p $(dir $@)
+	$(Q)ld -r -b binary -o $@ $<
+
+# A more generic rule to convert any texture file into a linkable object file.
+# This works for files in subdirectories of src/assets/textures.
+$(OBJ_DIR)/assets/textures/%.png.o: $(ASSETS_SRC_DIR)/textures/%.png
+	$(VECHO) "Embedding $<"
+	$(Q)mkdir -p $(dir $@)
 	$(Q)ld -r -b binary -o $@ $<
 
 # Clean up all build artifacts.

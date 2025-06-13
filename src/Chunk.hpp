@@ -14,9 +14,9 @@ class World; // Forward-declaration
 struct MeshResult {
     glm::ivec3 chunkCoord;
     std::vector<Vertex> opaqueVertices;
-    std::vector<unsigned int> opaqueIndices;
+    std::vector<unsigned short> opaqueIndices;
     std::vector<Vertex> transparentVertices;
-    std::vector<unsigned int> transparentIndices;
+    std::vector<unsigned short> transparentIndices;
 };
 
 // Represents an Axis-Aligned Bounding Box.
@@ -28,7 +28,10 @@ struct AABB {
 // Represents a chunk of the world.
 class Chunk {
 private:
+    // The world-space coordinate of the chunk's minimum corner (e.g., where x=0, y=0, z=0 is).
     glm::vec3 m_position;
+    // The world-space coordinate of the chunk's center. Used for distance sorting.
+    glm::vec3 m_centerPosition;
     glm::ivec3 m_chunkCoord;
     BlockType m_blocks[Constants::CHUNK_DIM][Constants::CHUNK_DIM][Constants::CHUNK_DIM];
     MeshAllocation m_opaqueMeshAllocation;
@@ -37,6 +40,7 @@ private:
     AABB m_expandedAabb;
 
     void calculateAABB();
+
 
 public:
     Chunk(glm::ivec3 chunkCoord, const uint32_t *gpuBlockData);
@@ -59,6 +63,7 @@ public:
 
     // Getters
     const glm::vec3 &getPosition() const;
+    const glm::vec3 &getCenterPosition() const;
     const AABB &getExpandedAABB() const;
     const MeshAllocation &getOpaqueMeshAllocation() const;
     const MeshAllocation &getTransparentMeshAllocation() const;

@@ -1,68 +1,101 @@
 #include "ChunkRenderer.hpp"
 #include <iostream>
 #include <algorithm>
+#include <optional>
 
-// This include is necessary for the definition of the Vertex struct.
+// Includes the Vertex struct definition, required for buffer layouts and data uploads.
 #include "Vertex.hpp"
 
-ChunkRenderer::ChunkRenderer(uint32_t vertexCapacity, uint32_t indexCapacity)
-    : m_vao(0), m_vbo(0), m_ebo(0), m_vertexCapacity(vertexCapacity), m_indexCapacity(indexCapacity)
+// Constructor
+ChunkRenderer::ChunkRenderer(uint32_t poolVertexCapacity, uint32_t poolIndexCapacity)
+    : m_poolVertexCapacity(poolVertexCapacity), m_poolIndexCapacity(poolIndexCapacity)
 {
-    initializeBuffers();
+    // Start with one pool.
+    createNewPool();
 }
 
+// Destructor
 ChunkRenderer::~ChunkRenderer()
 {
-    glDeleteVertexArrays(1, &m_vao);
-    glDeleteBuffers(1, &m_vbo);
-    glDeleteBuffers(1, &m_ebo);
+    for (auto& pool : m_pools) {
+        glDeleteVertexArrays(1, &pool.vao);
+        glDeleteBuffers(1, &pool.vbo);
+        glDeleteBuffers(1, &pool.ebo);
+    }
 }
 
-void ChunkRenderer::initializeBuffers()
+// Creates and initializes a new, empty BufferPool.
+void ChunkRenderer::createNewPool()
 {
-    glCreateVertexArrays(1, &m_vao);
-    glBindVertexArray(m_vao);
+    m_pools.emplace_back(BufferPool{
+        .vertexCapacity = m_poolVertexCapacity,
+        .indexCapacity = m_poolIndexCapacity
+    });
+    initializePool(m_pools.back());
+    
+    m_lastBoundVao = 0;
 
-    glGenBuffers(1, &m_vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-    glBufferData(GL_ARRAY_BUFFER, m_vertexCapacity * sizeof(Vertex), nullptr, GL_DYNAMIC_DRAW);
+    std::cout << "ChunkRenderer: No space found, creating new buffer pool (ID: " << m_pools.size() - 1 << ")." << std::endl;
+}
 
-    glGenBuffers(1, &m_ebo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, m_indexCapacity * sizeof(unsigned int), nullptr, GL_DYNAMIC_DRAW);
 
-    // Position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, position));
+// Sets up the OpenGL buffers for a given pool.
+void ChunkRenderer::initializePool(BufferPool& pool)
+{
+    glCreateVertexArrays(1, &pool.vao);
+    glBindVertexArray(pool.vao);
+
+    glGenBuffers(1, &pool.vbo);
+    glBindBuffer(GL_ARRAY_BUFFER, pool.vbo);
+    glBufferData(GL_ARRAY_BUFFER, pool.vertexCapacity * sizeof(Vertex), nullptr, GL_DYNAMIC_DRAW);
+
+    glGenBuffers(1, &pool.ebo);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, pool.ebo);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, pool.indexCapacity * sizeof(unsigned short), nullptr, GL_DYNAMIC_DRAW);
+
+    // Position attribute (vec3) - Location 0
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
     glEnableVertexAttribArray(0);
 
-    // Color attribute
-    glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, color));
+    // Color attribute (4x uint8_t, normalized) - Location 1
+    glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex), (void*)offsetof(Vertex, color));
     glEnableVertexAttribArray(1);
-
-    // Normal attribute
-    glVertexAttribPointer(2, 3, GL_BYTE, GL_TRUE, sizeof(Vertex), (GLvoid *)offsetof(Vertex, normal));
+    
+    // Normal attribute (3x int8_t, normalized) - Location 2
+    glVertexAttribPointer(2, 3, GL_BYTE, GL_TRUE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
     glEnableVertexAttribArray(2);
+
+    // Atlas Offset attribute (vec2) - Location 3
+    glVertexAttribPointer(3, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, atlasOffset));
+    glEnableVertexAttribArray(3);
+
+    // Surface Coordinates attribute (vec2) - Location 4
+    glVertexAttribPointer(4, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, surfaceCoords));
+    glEnableVertexAttribArray(4);
 
     glBindVertexArray(0);
 
     // Initialize the free list with a single block covering the entire buffer.
-    m_freeList.push_back({0, 0, m_vertexCapacity, m_indexCapacity});
+    pool.freeList.push_back({0, 0, pool.vertexCapacity, pool.indexCapacity});
 }
 
-MeshAllocation ChunkRenderer::allocateMesh(const std::vector<Vertex> &vertices, const std::vector<unsigned int> &indices)
+// Tries to allocate a mesh within a specific pool.
+std::optional<MeshAllocation> ChunkRenderer::tryAllocateInPool(uint32_t poolIndex, const std::vector<Vertex>& vertices, const std::vector<unsigned short>& indices)
 {
+    BufferPool& pool = m_pools[poolIndex];
     const uint32_t vertexCount = static_cast<uint32_t>(vertices.size());
     const uint32_t indexCount = static_cast<uint32_t>(indices.size());
 
     // Find the first free block that is large enough
-    for (auto it = m_freeList.begin(); it != m_freeList.end(); ++it)
+    for (auto it = pool.freeList.begin(); it != pool.freeList.end(); ++it)
     {
         if (it->vertexCapacity >= vertexCount && it->indexCapacity >= indexCount)
         {
             BufferBlock block = *it;
-            m_freeList.erase(it);
+            pool.freeList.erase(it);
 
             MeshAllocation allocation = {
+                poolIndex,
                 block.vertexOffset,
                 block.indexOffset,
                 vertexCount,
@@ -71,7 +104,6 @@ MeshAllocation ChunkRenderer::allocateMesh(const std::vector<Vertex> &vertices, 
             uint32_t remainingVertices = block.vertexCapacity - vertexCount;
             uint32_t remainingIndices = block.indexCapacity - indexCount;
 
-            // If there's leftover space, add it back to the free list as a new, smaller block.
             if (remainingVertices > 0 || remainingIndices > 0)
             {
                 BufferBlock newFreeBlock = {
@@ -79,32 +111,50 @@ MeshAllocation ChunkRenderer::allocateMesh(const std::vector<Vertex> &vertices, 
                     block.indexOffset + indexCount,
                     remainingVertices,
                     remainingIndices};
-                // Insert the new free block in sorted order to help prevent fragmentation.
-                auto insert_pos = std::lower_bound(m_freeList.begin(), m_freeList.end(), newFreeBlock.vertexOffset,
+                auto insert_pos = std::lower_bound(pool.freeList.begin(), pool.freeList.end(), newFreeBlock.vertexOffset,
                                                    [](const BufferBlock &b, uint32_t offset)
                                                    { return b.vertexOffset < offset; });
-                m_freeList.insert(insert_pos, newFreeBlock);
+                pool.freeList.insert(insert_pos, newFreeBlock);
             }
 
-            // Upload the vertex and index data to the GPU.
-            glBindBuffer(GL_ARRAY_BUFFER, m_vbo);
-            glBufferSubData(GL_ARRAY_BUFFER, allocation.vertexOffset * sizeof(Vertex), vertexCount * sizeof(Vertex), vertices.data());
-
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m_ebo);
-            glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, allocation.indexOffset * sizeof(unsigned int), indexCount * sizeof(unsigned int), indices.data());
+            // Use Direct State Access (DSA) to upload data without binding
+            glNamedBufferSubData(pool.vbo, allocation.vertexOffset * sizeof(Vertex), vertexCount * sizeof(Vertex), vertices.data());
+            glNamedBufferSubData(pool.ebo, allocation.indexOffset * sizeof(unsigned short), indexCount * sizeof(unsigned short), indices.data());
 
             return allocation;
         }
     }
 
-    std::cerr << "ChunkRenderer Error: Failed to allocate mesh. Buffer pool may be full." << std::endl;
-    return {}; // Return an invalid allocation
+    return std::nullopt;
 }
+
+MeshAllocation ChunkRenderer::allocateMesh(const std::vector<Vertex> &vertices, const std::vector<unsigned short> &indices)
+{
+    // Try to allocate in existing pools first.
+    for (size_t i = 0; i < m_pools.size(); ++i) {
+        if (auto allocation = tryAllocateInPool(i, vertices, indices)) {
+            return *allocation;
+        }
+    }
+
+    // If no space was found, create a new pool.
+    createNewPool();
+
+    if (auto allocation = tryAllocateInPool(m_pools.size() - 1, vertices, indices)) {
+        return *allocation;
+    }
+
+    std::cerr << "ChunkRenderer CRITICAL ERROR: Failed to allocate mesh even after creating a new pool." << std::endl;
+    return {};
+}
+
 
 void ChunkRenderer::freeMesh(const MeshAllocation &allocation)
 {
-    if (!allocation.isValid())
+    if (!allocation.isValid() || allocation.poolIndex >= m_pools.size())
         return;
+
+    BufferPool& pool = m_pools[allocation.poolIndex];
 
     BufferBlock freedBlock = {
         allocation.vertexOffset,
@@ -112,67 +162,55 @@ void ChunkRenderer::freeMesh(const MeshAllocation &allocation)
         allocation.vertexCount,
         allocation.indexCount};
 
-    // Find the correct sorted position to insert the newly freed block.
-    auto it = std::lower_bound(m_freeList.begin(), m_freeList.end(), freedBlock.vertexOffset,
+    auto it = std::lower_bound(pool.freeList.begin(), pool.freeList.end(), freedBlock.vertexOffset,
                                [](const BufferBlock &b, uint32_t offset)
                                { return b.vertexOffset < offset; });
 
-    auto inserted_it = m_freeList.insert(it, freedBlock);
-
-    // Try to merge the newly freed block with its neighbors.
-    mergeFreeBlocks(inserted_it);
+    auto inserted_it = pool.freeList.insert(it, freedBlock);
+    mergeFreeBlocks(pool, inserted_it);
 }
 
-void ChunkRenderer::mergeFreeBlocks(std::list<BufferBlock>::iterator it)
+void ChunkRenderer::mergeFreeBlocks(BufferPool& pool, std::list<BufferBlock>::iterator it)
 {
-    // Try to merge with the previous block
-    if (it != m_freeList.begin())
+    if (it != pool.freeList.begin())
     {
         auto prev = std::prev(it);
-        // Check if the blocks are physically adjacent in the buffer
         if (prev->vertexOffset + prev->vertexCapacity == it->vertexOffset &&
             prev->indexOffset + prev->indexCapacity == it->indexOffset)
         {
-            // Merge them
             prev->vertexCapacity += it->vertexCapacity;
             prev->indexCapacity += it->indexCapacity;
-            it = m_freeList.erase(it);
-            it = prev; // Update iterator to the newly merged block
+            it = pool.freeList.erase(it);
+            it = prev;
         }
     }
-
-    // Try to merge with the next block
     auto next = std::next(it);
-    if (next != m_freeList.end())
+    if (next != pool.freeList.end())
     {
-        // Check if the blocks are physically adjacent
         if (it->vertexOffset + it->vertexCapacity == next->vertexOffset &&
             it->indexOffset + it->indexCapacity == next->indexOffset)
         {
-            // Merge them
             it->vertexCapacity += next->vertexCapacity;
             it->indexCapacity += next->indexCapacity;
-            m_freeList.erase(next);
+            pool.freeList.erase(next);
         }
     }
 }
 
-void ChunkRenderer::bind() const
+void ChunkRenderer::draw(const MeshAllocation &allocation) const
 {
-    glBindVertexArray(m_vao);
-}
+    if (allocation.poolIndex >= m_pools.size()) return;
+    const BufferPool& pool = m_pools[allocation.poolIndex];
 
-void ChunkRenderer::unbind() const
-{
-    glBindVertexArray(0);
-}
-
-void ChunkRenderer::draw(const MeshAllocation &allocation)
-{
+    if (m_lastBoundVao != pool.vao) {
+        glBindVertexArray(pool.vao);
+        m_lastBoundVao = pool.vao;
+    }
+    
     glDrawElementsBaseVertex(
         GL_TRIANGLES,
         allocation.indexCount,
-        GL_UNSIGNED_INT,
-        (void *)(sizeof(unsigned int) * allocation.indexOffset),
+        GL_UNSIGNED_SHORT, // Use 16-bit indices
+        (void *)(sizeof(unsigned short) * allocation.indexOffset),
         allocation.vertexOffset);
 }

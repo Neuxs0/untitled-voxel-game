@@ -5,6 +5,8 @@
 // Represents an allocation of a mesh within a larger buffer pool.
 struct MeshAllocation
 {
+    // The index of the buffer pool this mesh belongs to.
+    uint32_t poolIndex = 0;
     // The offset (in vertices) from the beginning of the VBO.
     uint32_t vertexOffset = 0;
     // The offset (in indices) from the beginning of the EBO.
