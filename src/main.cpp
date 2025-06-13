@@ -3,6 +3,7 @@
 #include "Material.hpp"
 #include "World.hpp"
 #include "Camera.hpp"
+#include "EmbeddedShaders.hpp"
 #include <glm/gtc/matrix_transform.hpp>
 
 int main()
@@ -19,14 +20,13 @@ int main()
     const char *winTitle = "Untitled Voxel Game";
 
     // Initialize window
-    bool windowInitSuccess = false;
-    GLFWwindow *window = Window::initialize(winWidth, winHeight, winTitle, windowInitSuccess);
-    if (!windowInitSuccess || !window)
+    Window window(winWidth, winHeight, winTitle);
+    if (!window.initialize())
         return -1;
 
     // Camera setup
-    Camera camera(glm::vec3(0.8f, 1.8f, 0.8f));
-    glfwSetWindowUserPointer(window, &camera); // Set user pointer for callbacks
+    Camera camera(glm::vec3(0.8f, 10.8f, 0.8f), winWidth, winHeight);
+    window.setCamera(&camera);
 
     // OpenGL information
     std::cout << "OpenGL Vendor: " << glGetString(GL_VENDOR) << std::endl;
@@ -34,11 +34,8 @@ int main()
     std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
     std::cout << "GLSL Version: " << glGetString(GL_SHADING_LANGUAGE_VERSION) << std::endl;
 
-    int fbWidth, fbHeight;
-    glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-
     // OpenGL settings
-    glfwSwapInterval(0); // Disable vsync
+    // glfwSwapInterval(0); is now in Window::initialize()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
@@ -46,28 +43,21 @@ int main()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Shader setup
-    Shader coreShader("core.vert.glsl", "core.frag.glsl");
+    // Shader setup using the embedded sources
+    Shader coreShader(EmbeddedShaders::core_vert, EmbeddedShaders::core_frag);
 
     // World setup
     World world;
 
     // Material setup
-    Material blockMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.05f));
-
-    // Projection setup
-    float nearPlane = 0.01f;
-    float farPlane = 1000.0f;
-    glm::mat4 ProjectionMatrix(1.0f);
+    Material blockMaterial(glm::vec3(0.2f), glm::vec3(1.0f), glm::vec3(0.05f), 32.0f);
 
     // Light setup
     glm::vec3 lightPos0(8.0f, 30.0f, 8.0f);
 
     // Main game loop
-    while (!glfwWindowShouldClose(window))
+    while (!window.shouldClose())
     {
-        glfwPollEvents();
-
         // Update frame timing
         float currentFrame = static_cast<float>(glfwGetTime());
         deltaTime = currentFrame - lastFrame;
@@ -83,13 +73,12 @@ int main()
         }
 
         // Update game state
-        Window::updateInput(window, camera, deltaTime);
+        window.updateInput(deltaTime);
         world.update(camera.getPosition());
 
-        // Update matrices
-        glfwGetFramebufferSize(window, &fbWidth, &fbHeight);
-        ProjectionMatrix = glm::perspective(glm::radians(camera.getFov()), static_cast<float>(fbWidth) / fbHeight, nearPlane, farPlane);
+        // Update view matrix and frustum
         glm::mat4 ViewMatrix = camera.getViewMatrix();
+        camera.updateFrustum(ViewMatrix);
 
         // Clear the screen
         glClearColor(0.1f, 0.4f, 0.7f, 1.0f);
@@ -100,20 +89,15 @@ int main()
         coreShader.setVec3("cameraPos", camera.getPosition());
         coreShader.setVec3("lightPos0", lightPos0);
         coreShader.setMat4("ViewMatrix", ViewMatrix);
-        coreShader.setMat4("ProjectionMatrix", ProjectionMatrix);
+        coreShader.setMat4("ProjectionMatrix", camera.getProjectionMatrix());
         blockMaterial.sendToShader(coreShader);
-        coreShader.setBool("u_isWireframe", Window::wireframeEnabled);
-        world.render(coreShader);
+        coreShader.setBool("u_isWireframe", window.isWireframeEnabled());
+        world.render(coreShader, camera);
 
-        // Swap buffers and clean up
-        glfwSwapBuffers(window);
-        glBindVertexArray(0);
-        glUseProgram(0);
+        // Swap buffers and poll events
+        window.swapBuffersAndPollEvents();
     }
 
-    // Terminate GLFW
-    glfwDestroyWindow(window);
-    glfwTerminate();
-
+    // Window destructor will handle GLFW termination.
     return 0;
 }

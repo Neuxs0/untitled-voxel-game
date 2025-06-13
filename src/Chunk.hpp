@@ -2,44 +2,64 @@
 
 #include <vector>
 #include <glm/glm.hpp>
-
-class Mesh;
-class Shader;
-class World;
-
+#include <memory>
 #include "Constants.hpp"
 #include "Vertex.hpp"
 #include "Block.hpp"
+#include "MeshAllocation.hpp"
+
+class World; // Forward-declaration
+
+// The result from a CPU meshing worker thread.
+struct MeshResult {
+    glm::ivec3 chunkCoord;
+    std::vector<Vertex> opaqueVertices;
+    std::vector<unsigned int> opaqueIndices;
+    std::vector<Vertex> transparentVertices;
+    std::vector<unsigned int> transparentIndices;
+};
+
+// Represents an Axis-Aligned Bounding Box.
+struct AABB {
+    glm::vec3 min;
+    glm::vec3 max;
+};
 
 // Represents a chunk of the world.
-class Chunk
-{
+class Chunk {
 private:
-    // The world position of the chunk's origin corner.
     glm::vec3 m_position;
-    // The coordinate of this chunk in the world grid.
     glm::ivec3 m_chunkCoord;
-    // The blocks in this chunk.
     BlockType m_blocks[Constants::CHUNK_DIM][Constants::CHUNK_DIM][Constants::CHUNK_DIM];
-    // The mesh for opaque blocks.
-    Mesh *m_opaqueMesh;
-    // The mesh for transparent blocks.
-    Mesh *m_transparentMesh;
+    MeshAllocation m_opaqueMeshAllocation;
+    MeshAllocation m_transparentMeshAllocation;
+    AABB m_aabb;
+    AABB m_expandedAabb;
+
+    void calculateAABB();
 
 public:
-    // Constructor.
-    Chunk(glm::ivec3 chunkCoord);
-    // Destructor.
+    Chunk(glm::ivec3 chunkCoord, const uint32_t *gpuBlockData);
     ~Chunk();
 
-    // Returns the block at the given local coordinates.
     BlockType getBlock(int x, int y, int z) const;
 
-    // Generates the mesh for this chunk.
-    void generateMesh(const World &world);
+    /**
+     * @brief Generates the chunk's mesh using a greedy meshing algorithm.
+     * @details This method iterates through the chunk's blocks and adjacent chunks
+     *          to build an optimized mesh, merging adjacent faces of the same block type
+     *          into larger quads. It separates opaque and transparent geometry.
+     * @param world A const reference to the world, used to check neighbor blocks.
+     * @return A MeshResult struct containing the vertex and index data for the mesh.
+     */
+    MeshResult generateMeshStandalone(const World &world) const;
 
-    // Renders the opaque blocks in this chunk.
-    void renderOpaque(Shader &shader);
-    // Renders the transparent blocks in this chunk.
-    void renderTransparent(Shader &shader);
+    void setOpaqueMeshAllocation(MeshAllocation allocation);
+    void setTransparentMeshAllocation(MeshAllocation allocation);
+
+    // Getters
+    const glm::vec3 &getPosition() const;
+    const AABB &getExpandedAABB() const;
+    const MeshAllocation &getOpaqueMeshAllocation() const;
+    const MeshAllocation &getTransparentMeshAllocation() const;
 };

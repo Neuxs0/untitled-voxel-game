@@ -3,7 +3,10 @@
 #include <unordered_map>
 #include <GL/glew.h>
 #include <glm/glm.hpp>
-#include "utils/files.hpp"
+#include <string>
+#include <iostream>
+#include <stdexcept>
+#include <string_view> // Include string_view
 
 // Represents a shader program.
 class Shader
@@ -17,36 +20,17 @@ private:
     {
         if (uniformLocationCache.count(name))
             return uniformLocationCache.at(name);
-        
+
         GLint location = glGetUniformLocation(id, name.c_str());
         if (location == -1 && id != 0)
             std::cerr << "Error: Shader: getUniformLocation: Uniform '" << name << "' not found in shader program " << id << std::endl;
-        
+
         uniformLocationCache[name] = location;
         return location;
     }
 
-    // Reads a shader file and returns its content as a string.
-    std::string readShader(const std::string &fileName)
-    {
-        bool success = true;
-        std::string path = "assets/shaders/" + fileName;
-        std::string src = Utils::readFile(path, success);
-        if (!success)
-        {
-            std::cerr << "Error: Shader: readShader: Couldn't read shader file: " << path << std::endl;
-            return "";
-        }
-        if (src.empty())
-        {
-            std::cerr << "Error: Shader: readShader: Shader file " << path << " is empty." << std::endl;
-            return "";
-        }
-        return src;
-    }
-
-    // Loads a shader from a file and returns its handle.
-    GLuint loadShader(GLenum type, const std::string &fileName)
+    // Loads a shader from a source view and returns its handle.
+    GLuint loadShader(GLenum type, std::string_view srcView, const char *debugName)
     {
         char infoLog[512];
         GLint successStatus = GL_TRUE;
@@ -54,26 +38,22 @@ private:
         GLuint shaderHandle = glCreateShader(type);
         if (shaderHandle == 0)
         {
-            std::cerr << "Error: Shader: loadShader: Failed to create shader object for " << fileName << std::endl;
+            std::cerr << "Error: Shader: loadShader: Failed to create shader object for " << debugName << std::endl;
             return 0;
         }
 
-        std::string srcStr = this->readShader(fileName);
-        if (srcStr.empty())
-        {
-            std::cerr << "Error: Shader: loadShader: Source code for shader " << fileName << " is empty or unreadable." << std::endl;
-            glDeleteShader(shaderHandle);
-            return 0;
-        }
+        const char *srcData = srcView.data();
+        const GLint srcLength = static_cast<GLint>(srcView.size());
 
-        const GLchar *src = srcStr.c_str();
-        glShaderSource(shaderHandle, 1, &src, NULL);
+        // Use the glShaderSource overload that accepts a length parameter.
+        glShaderSource(shaderHandle, 1, &srcData, &srcLength);
+
         glCompileShader(shaderHandle);
         glGetShaderiv(shaderHandle, GL_COMPILE_STATUS, &successStatus);
         if (!successStatus)
         {
             glGetShaderInfoLog(shaderHandle, 512, NULL, infoLog);
-            std::cerr << "Error: Shader: loadShader: Couldn't compile shader: " << fileName << std::endl;
+            std::cerr << "Error: Shader: loadShader: Couldn't compile shader: " << debugName << std::endl;
             std::cerr << infoLog << std::endl;
             glDeleteShader(shaderHandle);
             return 0;
@@ -109,18 +89,18 @@ private:
     }
 
 public:
-    // Constructor.
-    Shader(const std::string &vertFile, const std::string &fragFile, const std::string &geomFile = "")
+    // Constructor accepts string_views.
+    Shader(std::string_view vertSrc, std::string_view fragSrc, std::string_view geomSrc = {})
         : id(0)
     {
         GLuint vertShader = 0;
         GLuint fragShader = 0;
         GLuint geomShader = 0;
 
-        vertShader = loadShader(GL_VERTEX_SHADER, vertFile);
-        fragShader = loadShader(GL_FRAGMENT_SHADER, fragFile);
-        if (!geomFile.empty())
-            geomShader = loadShader(GL_GEOMETRY_SHADER, geomFile);
+        vertShader = loadShader(GL_VERTEX_SHADER, vertSrc, "VERTEX");
+        fragShader = loadShader(GL_FRAGMENT_SHADER, fragSrc, "FRAGMENT");
+        if (!geomSrc.empty())
+            geomShader = loadShader(GL_GEOMETRY_SHADER, geomSrc, "GEOMETRY");
 
         if (vertShader == 0 || fragShader == 0)
         {

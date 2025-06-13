@@ -1,150 +1,318 @@
 #include "World.hpp"
+#include "Camera.hpp"
+#include "EmbeddedShaders.hpp"
+#include "Constants.hpp"
 #include <algorithm>
+#include <glm/gtx/norm.hpp>
+#include <thread>
+#include <iostream>
 
-// World constructor.
+// World constructor: Initializes renderers, generators, and starts worker threads.
 World::World()
 {
-    // Chunks are loaded dynamically in the update() function.
+    m_chunkRenderer = std::make_unique<ChunkRenderer>(2097152, 8388608); // 2M vertices, 8M indices
+    m_terrainGenerator = std::make_unique<TerrainGenerator>(EmbeddedShaders::terrain_gen_comp);
+    m_lastPlayerChunkCoord = {std::numeric_limits<int>::max(), 0, std::numeric_limits<int>::max()};
+    
+    unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency() - 1);
+    for (unsigned int i = 0; i < numThreads; ++i)
+    {
+        m_workerThreads.emplace_back(&World::workerLoop, this);
+    }
 }
 
-// Update the world state based on the player's position.
+// World destructor: Shuts down threads and cleans up GPU resources.
+World::~World()
+{
+    m_isShuttingDown = true;
+    m_meshRequestQueue.notify_all(); // Wake up any sleeping worker threads so they can exit
+    for (auto &thread : m_workerThreads)
+    {
+        if (thread.joinable())
+        {
+            thread.join();
+        }
+    }
+    for (const auto &job : m_pendingGpuJobs)
+    {
+        glDeleteSync(job.fence);
+    }
+}
+
+// The main loop for each CPU worker thread.
+void World::workerLoop()
+{
+    while (!m_isShuttingDown)
+    {
+        glm::ivec3 coord;
+        if (m_meshRequestQueue.wait_and_pop(coord, m_isShuttingDown))
+        {
+            std::shared_ptr<Chunk> chunkToMesh;
+            {
+                std::lock_guard<std::mutex> lock(m_chunksMutex);
+                auto it = m_chunks.find(coord);
+                if (it != m_chunks.end())
+                {
+                    chunkToMesh = it->second;
+                }
+            }
+            if (chunkToMesh)
+            {
+                // The expensive greedy meshing happens here on a background thread.
+                m_meshResultQueue.push(chunkToMesh->generateMeshStandalone(*this));
+            }
+        }
+    }
+}
+
+// Main world update function, called every frame.
 void World::update(const glm::vec3 &playerPos)
 {
     glm::ivec3 playerChunkCoord = {
-        static_cast<int>(std::floor(playerPos.x / Constants::CHUNK_WIDTH)),
-        0,
+        static_cast<int>(std::floor(playerPos.x / Constants::CHUNK_WIDTH)), 0,
         static_cast<int>(std::floor(playerPos.z / Constants::CHUNK_WIDTH))};
 
-    const int renderDistSquared = m_renderDistance * m_renderDistance;
-    std::vector<glm::ivec3> chunksToCreate;
-
-    for (int x = -m_renderDistance; x <= m_renderDistance; ++x)
+    // --- Update chunk lists if player has moved ---
+    if (playerChunkCoord != m_lastPlayerChunkCoord)
     {
-        for (int z = -m_renderDistance; z <= m_renderDistance; ++z)
-        {
-            if (x * x + z * z <= renderDistSquared)
-            {
-                glm::ivec3 coord = {playerChunkCoord.x + x, 0, playerChunkCoord.z + z};
-                if (m_chunks.find(coord) == m_chunks.end())
-                {
-                    chunksToCreate.push_back(coord);
-                }
-            }
-        }
+        m_lastPlayerChunkCoord = playerChunkCoord;
+        updateChunkLists();
     }
 
-    if (!chunksToCreate.empty())
+    // --- Process asynchronous results ---
+    processCompletedGpuJobs(); // Check for finished block data from the GPU
+    dispatchGpuJobs();         // Send new generation jobs to the GPU from the backlog
+
+    // --- Dispatch work to CPU meshing threads ---
+    int dispatched = 0;
+    while (!m_meshingQueue.empty() && dispatched < 4) // Dispatch up to 4 chunks per frame
     {
-        std::set<glm::ivec3, ivec3_comp> chunksToQueue;
-
-        for (const auto &coord : chunksToCreate)
-        {
-            m_chunks[coord] = std::make_unique<Chunk>(coord);
-            chunksToQueue.insert(coord);
-        }
-
-        const glm::ivec3 neighborOffsets[] = {
-            {1, 0, 0}, {-1, 0, 0}, {0, 0, 1}, {0, 0, -1}};
-
-        for (const auto &newCoord : chunksToCreate)
-        {
-            for (const auto &offset : neighborOffsets)
-            {
-                glm::ivec3 neighborCoord = newCoord + offset;
-                if (m_chunks.count(neighborCoord))
-                {
-                    chunksToQueue.insert(neighborCoord);
-                }
-            }
-        }
-
-        for (const auto &coord : chunksToQueue)
-        {
-            m_meshingQueue.push_back(coord);
-        }
-    }
-
-    unloadDistantChunks(playerChunkCoord);
-
-    int chunksProcessed = 0;
-    while (!m_meshingQueue.empty() && chunksProcessed < MESHING_RATE)
-    {
-        glm::ivec3 coord = m_meshingQueue.front();
+        m_meshRequestQueue.push(m_meshingQueue.front());
         m_meshingQueue.pop_front();
+        dispatched++;
+    }
 
-        auto it = m_chunks.find(coord);
+    // --- Finalize meshes on the main thread ---
+    MeshResult result;
+    while (m_meshResultQueue.try_pop(result))
+    {
+        std::lock_guard<std::mutex> lock(m_chunksMutex);
+        auto it = m_chunks.find(result.chunkCoord);
         if (it != m_chunks.end())
         {
-            it->second->generateMesh(*this);
-        }
+            // Free old mesh from the pool before allocating a new one
+            m_chunkRenderer->freeMesh(it->second->getOpaqueMeshAllocation());
+            m_chunkRenderer->freeMesh(it->second->getTransparentMeshAllocation());
 
-        chunksProcessed++;
+            // Allocate the new optimized mesh
+            it->second->setOpaqueMeshAllocation(m_chunkRenderer->allocateMesh(result.opaqueVertices, result.opaqueIndices));
+            it->second->setTransparentMeshAllocation(m_chunkRenderer->allocateMesh(result.transparentVertices, result.transparentIndices));
+        }
     }
 }
 
-// Unload chunks that are too far from the player.
-void World::unloadDistantChunks(const glm::ivec3 &playerChunkCoord)
+// Identifies chunks to load/unload and prioritizes them.
+void World::updateChunkLists()
 {
     std::vector<glm::ivec3> chunksToUnload;
-    const int unloadDist = m_renderDistance + 1;
-    const int unloadDistSquared = unloadDist * unloadDist;
+    std::vector<glm::ivec3> newChunksRequired;
+    const int renderDist = m_renderDistance;
+    const long long unloadDistSq = (renderDist + 2) * (renderDist + 2);
 
-    for (auto const &[coord, chunk] : m_chunks)
-    {
-        int distX = coord.x - playerChunkCoord.x;
-        int distZ = coord.z - playerChunkCoord.z;
-
-        if (distX * distX + distZ * distZ > unloadDistSquared)
-        {
+    // Identify chunks to unload
+    std::lock_guard<std::mutex> lock(m_chunksMutex);
+    for (const auto& [coord, chunk] : m_chunks) {
+        long long dx = coord.x - m_lastPlayerChunkCoord.x;
+        long long dz = coord.z - m_lastPlayerChunkCoord.z;
+        if (dx*dx + dz*dz > unloadDistSq) {
             chunksToUnload.push_back(coord);
         }
     }
 
-    for (const auto &coord : chunksToUnload)
+    // Unload them
+    for (const auto& coord : chunksToUnload) {
+        auto it = m_chunks.find(coord);
+        if (it != m_chunks.end()) {
+            m_chunkRenderer->freeMesh(it->second->getOpaqueMeshAllocation());
+            m_chunkRenderer->freeMesh(it->second->getTransparentMeshAllocation());
+            m_chunks.erase(it);
+        }
+    }
+
+    // Identify chunks to load
+    for (int x = -renderDist; x <= renderDist; ++x) {
+        for (int z = -renderDist; z <= renderDist; ++z) {
+            if (x*x + z*z > renderDist*renderDist) continue;
+            
+            glm::ivec3 coord = m_lastPlayerChunkCoord + glm::ivec3(x, 0, z);
+
+            if (m_chunks.count(coord)) continue;
+
+            bool isPending = false;
+            for(const auto& job : m_pendingGpuJobs) if(job.chunkCoord == coord) { isPending=true; break; }
+            if(isPending) continue;
+            
+            bool inBacklog = false;
+            for(const auto& backlogCoord : m_generationBacklog) if(backlogCoord == coord) { inBacklog=true; break; }
+            if(inBacklog) continue;
+            
+            newChunksRequired.push_back(coord);
+        }
+    }
+
+    // Sort new chunks by distance to player
+    std::sort(newChunksRequired.begin(), newChunksRequired.end(),
+        [&](const glm::ivec3& a, const glm::ivec3& b) {
+            return glm::distance2(glm::vec2(a.x, a.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z)) <
+                   glm::distance2(glm::vec2(b.x, b.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z));
+        });
+
+    // Add sorted chunks to the main generation backlog
+    m_generationBacklog.insert(m_generationBacklog.end(), newChunksRequired.begin(), newChunksRequired.end());
+}
+
+// Tries to send jobs from the backlog to the GPU.
+void World::dispatchGpuJobs()
+{
+    while (!m_generationBacklog.empty())
     {
-        m_meshingQueue.erase(
-            std::remove(m_meshingQueue.begin(), m_meshingQueue.end(), coord),
-            m_meshingQueue.end());
-        m_chunks.erase(coord);
+        auto job = m_terrainGenerator->dispatchJob(m_generationBacklog.front());
+        if (job)
+        {
+            m_pendingGpuJobs.push_back(*job);
+            m_generationBacklog.pop_front();
+        }
+        else
+        {
+            // GPU job pool is full, try again next frame
+            break; 
+        }
     }
 }
 
-// Get the block at a given world position.
+// Checks for finished GPU jobs, creates Chunk objects, and queues them for meshing.
+void World::processCompletedGpuJobs()
+{
+    bool needsResort = false;
+    for (auto it = m_pendingGpuJobs.begin(); it != m_pendingGpuJobs.end();)
+    {
+        GLenum waitResult = glClientWaitSync(it->fence, 0, 0);
+        if (waitResult == GL_ALREADY_SIGNALED || waitResult == GL_CONDITION_SATISFIED)
+        {
+            uint32_t blockData[Constants::CHUNK_VOL];
+            m_terrainGenerator->readJobResults(*it, blockData);
+
+            {
+                std::lock_guard<std::mutex> lock(m_chunksMutex);
+                m_chunks[it->chunkCoord] = std::make_shared<Chunk>(it->chunkCoord, blockData);
+            }
+            
+            // This chunk is now ready to be meshed by a CPU thread
+            m_meshingQueue.push_back(it->chunkCoord);
+            needsResort = true;
+            
+            m_terrainGenerator->releaseJobResources(*it);
+            it = m_pendingGpuJobs.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
+
+    if (needsResort)
+    {
+        // Sort the meshing queue by distance so CPU workers prioritize chunks near the player
+        std::sort(m_meshingQueue.begin(), m_meshingQueue.end(),
+            [&](const glm::ivec3& a, const glm::ivec3& b) {
+                return glm::distance2(glm::vec2(a.x, a.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z)) <
+                       glm::distance2(glm::vec2(b.x, b.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z));
+            });
+    }
+}
+
+// Gets the block type at a given world position (thread-safe).
 BlockType World::getBlock(const glm::ivec3 &worldBlockPos) const
 {
-    const int D = Constants::CHUNK_DIM;
-    glm::ivec3 chunkCoord;
+    glm::ivec3 chunkCoord(
+        static_cast<int>(std::floor(static_cast<float>(worldBlockPos.x) / Constants::CHUNK_WIDTH)),
+        static_cast<int>(std::floor(static_cast<float>(worldBlockPos.y) / Constants::CHUNK_WIDTH)),
+        static_cast<int>(std::floor(static_cast<float>(worldBlockPos.z) / Constants::CHUNK_WIDTH))
+    );
 
-    chunkCoord.x = (worldBlockPos.x >= 0) ? (worldBlockPos.x / D) : ((worldBlockPos.x - D + 1) / D);
-    chunkCoord.y = (worldBlockPos.y >= 0) ? (worldBlockPos.y / D) : ((worldBlockPos.y - D + 1) / D);
-    chunkCoord.z = (worldBlockPos.z >= 0) ? (worldBlockPos.z / D) : ((worldBlockPos.z - D + 1) / D);
-
-    auto it = m_chunks.find(chunkCoord);
-    if (it == m_chunks.end())
+    std::shared_ptr<Chunk> chunk;
     {
-        return BlockType::AIR;
+        std::lock_guard<std::mutex> lock(m_chunksMutex);
+        auto it = m_chunks.find(chunkCoord);
+        if (it == m_chunks.end())
+        {
+            // If the chunk doesn't exist, we can't get a block from it.
+            // This could be extended to synchronously generate data if needed.
+            return BlockType::AIR;
+        }
+        chunk = it->second;
     }
 
-    int localX = worldBlockPos.x - chunkCoord.x * D;
-    int localY = worldBlockPos.y - chunkCoord.y * D;
-    int localZ = worldBlockPos.z - chunkCoord.z * D;
-
-    return it->second->getBlock(localX, localY, localZ);
+    // This part does not need a lock because the chunk's block data is immutable after creation.
+    glm::ivec3 localPos = worldBlockPos - (chunkCoord * Constants::CHUNK_DIM);
+    return chunk->getBlock(localPos.x, localPos.y, localPos.z);
 }
 
-// Render the world.
-void World::render(Shader &shader)
+
+// Renders all visible chunks.
+void World::render(Shader &shader, const Camera &camera)
 {
-    // Render opaque blocks first
-    for (auto const &[coord, chunk] : m_chunks)
+    m_chunkRenderer->bind();
+
+    std::vector<std::shared_ptr<Chunk>> chunksToRender;
     {
-        chunk->renderOpaque(shader);
+        std::lock_guard<std::mutex> lock(m_chunksMutex);
+        chunksToRender.reserve(m_chunks.size());
+        for (auto const &[coord, chunk] : m_chunks)
+        {
+            chunksToRender.push_back(chunk);
+        }
     }
-    // Then render transparent blocks
+
+    // Opaque pass
+    for (const auto &chunk : chunksToRender)
+    {
+        if (camera.isAABBVisible(chunk->getExpandedAABB().min, chunk->getExpandedAABB().max))
+        {
+            const auto &alloc = chunk->getOpaqueMeshAllocation();
+            if (alloc.isValid())
+            {
+                glm::mat4 ModelMatrix = glm::translate(glm::mat4(1.0f), chunk->getPosition());
+                shader.setMat4("ModelMatrix", ModelMatrix);
+                ChunkRenderer::draw(alloc);
+            }
+        }
+    }
+
+    // Transparent pass
     glDepthMask(GL_FALSE);
-    for (auto const &[coord, chunk] : m_chunks)
-    {
-        chunk->renderTransparent(shader);
+    std::vector<const Chunk *> transparentChunks;
+    for (const auto &chunk : chunksToRender) {
+        if (chunk->getTransparentMeshAllocation().isValid() && camera.isAABBVisible(chunk->getExpandedAABB().min, chunk->getExpandedAABB().max)) {
+            transparentChunks.push_back(chunk.get());
+        }
     }
+
+    if (!transparentChunks.empty()) {
+        const glm::vec3 cameraPos = camera.getPosition();
+        std::sort(transparentChunks.begin(), transparentChunks.end(),
+            [&cameraPos](const Chunk *a, const Chunk *b) {
+                return glm::distance2(a->getPosition(), cameraPos) > glm::distance2(b->getPosition(), cameraPos);
+            });
+
+        for (const auto* chunk : transparentChunks) {
+            const auto &alloc = chunk->getTransparentMeshAllocation();
+            glm::mat4 ModelMatrix = glm::translate(glm::mat4(1.0f), chunk->getPosition());
+            shader.setMat4("ModelMatrix", ModelMatrix);
+            ChunkRenderer::draw(alloc);
+        }
+    }
+
     glDepthMask(GL_TRUE);
+    m_chunkRenderer->unbind();
 }

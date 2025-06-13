@@ -5,6 +5,7 @@ struct Material {
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+    float shininess;
 };
 
 // Input variables from the vertex shader
@@ -39,10 +40,9 @@ void main() {
         vec3 diffuseFinal = material.diffuse * diffuse;
 
         // Specular lighting
-        float specularFocalPoint = 30.0f;
         vec3 reflectDir = reflect(-lightDir, normalize(vs_normal));
         vec3 viewDir = normalize(cameraPos - vs_position);
-        float specular = pow(max(dot(viewDir, reflectDir), 0.0), specularFocalPoint);
+        float specular = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
         vec3 specularFinal = material.specular * specular;
 
         // Final color

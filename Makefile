@@ -1,8 +1,7 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Wextra -O3 -MMD -MP
+CXXFLAGS = -std=c++23 -Wall -Wextra -O3 -MMD -MP -DGLM_ENABLE_EXPERIMENTAL
 LDFLAGS =
 LDLIBS = -lglfw -lGLEW -lGL -lm
-INCLUDE_DIRS = -I$(SRC_DIR)
 
 SRC_DIR = src
 OBJ_DIR = build/obj
@@ -11,9 +10,18 @@ TARGET_NAME = untitled_voxel_game
 TARGET = $(DIST_DIR)/$(TARGET_NAME)
 
 ASSETS_SRC_DIR = $(SRC_DIR)/assets
-ASSETS_DEST_DIR = $(DIST_DIR)/assets
+
+# Add the source directory to the include path
+INCLUDE_DIRS = -I$(SRC_DIR)
 
 SOURCES = $(shell find $(SRC_DIR) -name '*.cpp')
+
+# Find all .glsl files, using -o to prevent duplicates for names like *.comp.glsl.
+SHADER_FILES = $(shell find $(ASSETS_SRC_DIR)/shaders -name '*.glsl' -o -name '*.comp.glsl')
+
+# Generate object file names for shaders.
+SHADER_OBJECTS = $(patsubst $(ASSETS_SRC_DIR)/shaders/%,$(OBJ_DIR)/shaders/%.o,$(SHADER_FILES))
+
 OBJECTS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SOURCES))
 DEPS = $(OBJECTS:.o=.d)
 
@@ -26,27 +34,19 @@ else
     VECHO := @echo
 endif
 
-.PHONY: all clean run rebuild test copy_assets test_sequence
+.PHONY: all clean run rebuild test test_sequence
 
-# Default target: build the executable and copy assets.
-all: $(TARGET) copy_assets
+# Default target: build the executable.
+all: $(TARGET)
 
-# Create the object directory if it doesn't exist.
-$(OBJ_DIR):
+# Create the necessary directories if they don't exist.
+$(OBJ_DIR) $(DIST_DIR) $(OBJ_DIR)/shaders:
 	$(Q)mkdir -p $@
 
-# Create the distribution directory if it doesn't exist.
-$(DIST_DIR):
-	$(Q)mkdir -p $@
-
-# Create the assets destination directory if it doesn't exist.
-$(ASSETS_DEST_DIR):
-	$(Q)mkdir -p $@
-
-# Link the object files to create the executable.
-$(TARGET): $(OBJECTS) | $(DIST_DIR)
+# Link all object files (C++ and shader-generated) to create the executable.
+$(TARGET): $(OBJECTS) $(SHADER_OBJECTS) | $(DIST_DIR)
 	$(VECHO) "Linking $@"
-	$(Q)$(CXX) $(OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
+	$(Q)$(CXX) $(OBJECTS) $(SHADER_OBJECTS) -o $@ $(LDFLAGS) $(LDLIBS)
 
 # Compile source files into object files.
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
@@ -54,10 +54,10 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
 	$(Q)mkdir -p $(dir $@)
 	$(Q)$(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) -c $< -o $@
 
-# Copy assets to the distribution directory.
-copy_assets: | $(ASSETS_DEST_DIR)
-	$(VECHO) "Copying assets to $(ASSETS_DEST_DIR)..."
-	$(Q)cp -R $(ASSETS_SRC_DIR)/* $(ASSETS_DEST_DIR)/
+# Rule to convert a file into a linkable object file using the linker (ld).
+$(OBJ_DIR)/shaders/%.o: $(ASSETS_SRC_DIR)/shaders/% | $(OBJ_DIR)/shaders
+	$(VECHO) "Embedding $<"
+	$(Q)ld -r -b binary -o $@ $<
 
 # Clean up all build artifacts.
 clean:
