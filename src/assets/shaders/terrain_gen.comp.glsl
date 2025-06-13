@@ -6,6 +6,7 @@ const int CHUNK_DIM = 16;
 const uint AIR = 0u;
 const uint DIRT = 1u;
 const uint GRASS = 2u;
+const uint STONE = 3u;
 
 // The buffer to store the generated block data.
 // It's a 1D array representing the 3D chunk volume.
@@ -36,22 +37,22 @@ void main() {
 
     // Determine the terrain height at this X, Z position using a simple noise function.
     // This creates a basic, rolling-hills landscape.
-    float amplitude = 10.0f;
+    float amplitude = 100.0f;
     float frequency = 0.1f;
     int base_height_block_y = 0;
     // Combine sine and cosine to create a more varied pattern than a simple wave.
     int terrain_surface_y = base_height_block_y + int(amplitude * (sin(worldX_center * frequency) + cos(worldZ_center * frequency)) / 2.0f);
 
     // Determine the block type based on its height relative to the surface.
-    uint blockID = AIR;
-    if (worldY_block == terrain_surface_y) {
+    uint blockID;
+    if (worldY_block > terrain_surface_y) {
+        blockID = AIR;
+    } else if (worldY_block == terrain_surface_y) {
         blockID = GRASS;
-    } else if (worldY_block < terrain_surface_y && worldY_block >= terrain_surface_y - 3) {
-        // Place a few layers of dirt below the grass.
+    } else if (worldY_block > terrain_surface_y - 4) { // 3 layers of dirt
         blockID = DIRT;
-    } else {
-        // Everything else is air.
-        blockID = AIR; 
+    } else { // Everything below is stone
+        blockID = STONE;
     }
     
     // Write the final block ID to the buffer.

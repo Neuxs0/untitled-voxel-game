@@ -12,7 +12,7 @@ World::World()
 {
     m_chunkRenderer = std::make_unique<ChunkRenderer>(2097152, 8388608); // 2M vertices, 8M indices
     m_terrainGenerator = std::make_unique<TerrainGenerator>(EmbeddedShaders::terrain_gen_comp);
-    m_lastPlayerChunkCoord = {std::numeric_limits<int>::max(), 0, std::numeric_limits<int>::max()};
+    m_lastPlayerChunkCoord = {std::numeric_limits<int>::max(), std::numeric_limits<int>::max(), std::numeric_limits<int>::max()};
     
     unsigned int numThreads = std::max(1u, std::thread::hardware_concurrency() - 1);
     for (unsigned int i = 0; i < numThreads; ++i)
@@ -69,7 +69,8 @@ void World::workerLoop()
 void World::update(const glm::vec3 &playerPos)
 {
     glm::ivec3 playerChunkCoord = {
-        static_cast<int>(std::floor(playerPos.x / Constants::CHUNK_WIDTH)), 0,
+        static_cast<int>(std::floor(playerPos.x / Constants::CHUNK_WIDTH)),
+        static_cast<int>(std::floor(playerPos.y / Constants::CHUNK_WIDTH)),
         static_cast<int>(std::floor(playerPos.z / Constants::CHUNK_WIDTH))};
 
     // --- Update chunk lists if player has moved ---
@@ -123,8 +124,9 @@ void World::updateChunkLists()
     std::lock_guard<std::mutex> lock(m_chunksMutex);
     for (const auto& [coord, chunk] : m_chunks) {
         long long dx = coord.x - m_lastPlayerChunkCoord.x;
+        long long dy = coord.y - m_lastPlayerChunkCoord.y;
         long long dz = coord.z - m_lastPlayerChunkCoord.z;
-        if (dx*dx + dz*dz > unloadDistSq) {
+        if (dx*dx + dy*dy + dz*dz > unloadDistSq) {
             chunksToUnload.push_back(coord);
         }
     }
@@ -140,31 +142,33 @@ void World::updateChunkLists()
     }
 
     // Identify chunks to load
-    for (int x = -renderDist; x <= renderDist; ++x) {
-        for (int z = -renderDist; z <= renderDist; ++z) {
-            if (x*x + z*z > renderDist*renderDist) continue;
-            
-            glm::ivec3 coord = m_lastPlayerChunkCoord + glm::ivec3(x, 0, z);
+    for (int y = -renderDist; y <= renderDist; ++y) {
+        for (int x = -renderDist; x <= renderDist; ++x) {
+            for (int z = -renderDist; z <= renderDist; ++z) {
+                if (x*x + y*y + z*z > renderDist*renderDist) continue;
+                
+                glm::ivec3 coord = m_lastPlayerChunkCoord + glm::ivec3(x, y, z);
 
-            if (m_chunks.count(coord)) continue;
+                if (m_chunks.count(coord)) continue;
 
-            bool isPending = false;
-            for(const auto& job : m_pendingGpuJobs) if(job.chunkCoord == coord) { isPending=true; break; }
-            if(isPending) continue;
-            
-            bool inBacklog = false;
-            for(const auto& backlogCoord : m_generationBacklog) if(backlogCoord == coord) { inBacklog=true; break; }
-            if(inBacklog) continue;
-            
-            newChunksRequired.push_back(coord);
+                bool isPending = false;
+                for(const auto& job : m_pendingGpuJobs) if(job.chunkCoord == coord) { isPending=true; break; }
+                if(isPending) continue;
+                
+                bool inBacklog = false;
+                for(const auto& backlogCoord : m_generationBacklog) if(backlogCoord == coord) { inBacklog=true; break; }
+                if(inBacklog) continue;
+                
+                newChunksRequired.push_back(coord);
+            }
         }
     }
 
     // Sort new chunks by distance to player
     std::sort(newChunksRequired.begin(), newChunksRequired.end(),
         [&](const glm::ivec3& a, const glm::ivec3& b) {
-            return glm::distance2(glm::vec2(a.x, a.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z)) <
-                   glm::distance2(glm::vec2(b.x, b.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z));
+            return glm::distance2(glm::vec3(a), glm::vec3(m_lastPlayerChunkCoord)) <
+                   glm::distance2(glm::vec3(b), glm::vec3(m_lastPlayerChunkCoord));
         });
 
     // Add sorted chunks to the main generation backlog
@@ -225,8 +229,8 @@ void World::processCompletedGpuJobs()
         // Sort the meshing queue by distance so CPU workers prioritize chunks near the player
         std::sort(m_meshingQueue.begin(), m_meshingQueue.end(),
             [&](const glm::ivec3& a, const glm::ivec3& b) {
-                return glm::distance2(glm::vec2(a.x, a.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z)) <
-                       glm::distance2(glm::vec2(b.x, b.z), glm::vec2(m_lastPlayerChunkCoord.x, m_lastPlayerChunkCoord.z));
+                return glm::distance2(glm::vec3(a), glm::vec3(m_lastPlayerChunkCoord)) <
+                       glm::distance2(glm::vec3(b), glm::vec3(m_lastPlayerChunkCoord));
             });
     }
 }
